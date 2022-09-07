@@ -83,8 +83,7 @@ def perform_BO_experiment(seed : int, initial_design_size: int, budget: int) -> 
     for i in range(budget):
         X, Y = perform_BO_iteration(X, Y)
 
-    return 1
-    #return Y
+    return Y
 
 def perform_random_experiment(seed, initial_design_size, budget) -> torch.Tensor:
     random.seed(seed)
@@ -103,10 +102,8 @@ if __name__ == '__main__' :
     n_methods = 2
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
-    counter = 0
-    while counter < total_exps:
-        results[0, :, counter] = perform_BO_experiment(counter, initial_design_size, budget).reshape((total_its))
-        results[1, :, counter] = perform_random_experiment(counter, initial_design_size, budget).reshape((total_its))
-        counter = counter + 1
-        print(counter)
+    for exp in range(total_exps):
+        results[0, :, exp] = perform_BO_experiment(exp, initial_design_size, budget).reshape((total_its))
+        results[1, :, exp] = perform_random_experiment(exp, initial_design_size, budget).reshape((total_its))
+        print(exp)
     plot_results(initial_design_size+budget, results)
