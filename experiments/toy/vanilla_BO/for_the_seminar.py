@@ -8,27 +8,20 @@ from gpytorch.mlls import ExactMarginalLogLikelihood
 import matplotlib.pyplot as plt
 import numpy as np
 import random
-from scipy.special import softmax
 
-
-#TODO 1: Propose new objective function with highest value in the simplex then less.
-#TODO 2: Propose to penalize the exit of the obj fun as another baseline.
-#TODO 3: Use the transformation in the GP (kernels).
-#TODO 4: Use Daniel transformation.
-#TODO 5: Experiments.
-
+#Naive BO.
+#TODO TASK 1: Create the loop. DONE! 
+#TODO TASK 2: Plot the results. DONE! (Extend it to several experiments)
+#TODO TASK 3: Modularize the code. DONE! 
+#TODO TASK 4: Improve the objective function.
+#TODO TASK 5: Extend it to several experiments with different seed. DONE!
 GLOBAL_MAXIMUM = 1.8
 
 def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
 
-def obj_fun(X_train): #Objective function. Needs to be only valid for the diagonal, or at least, more valid there.
+def obj_fun(X_train): #Objective function.
     return torch.tensor([np.sin(x[0])/(np.cos(x[1]) + np.sinh(x[2])) + torch.rand(1)/10.0 for x in X_train])
-
-def wrapped_obj_fun(X_train):
-    transformed_inputs = (X_train - 0.5) / 0.05
-    X_train = torch.exp(transformed_inputs)/torch.sum(torch.exp(transformed_inputs)) #Sums to 1: ps assert(torch.sum(X_train)==1.0)
-    return obj_fun(X_train)
 
 def plot_results(n_iters, results):
     X_plot = np.linspace(1, n_iters, n_iters)
@@ -56,7 +49,7 @@ def get_initial_results(initial_design_size):
     Y = obj_fun(X).reshape((initial_design_size), 1)
     return X, obj_fun(X).reshape((initial_design_size), 1)
 
-def perform_BO_iteration(X, Y, wrapped=False):
+def perform_BO_iteration(X, Y):
     gp = SingleTaskGP(X, Y)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
     fit_gpytorch_model(mll)
@@ -70,11 +63,7 @@ def perform_BO_iteration(X, Y, wrapped=False):
             UCB, bounds=bounds, q=1, num_restarts=5, raw_samples=20,
     )
 
-    if wrapped:
-        new_y = wrapped_obj_fun(new_X)
-    else:
-        new_y = obj_fun(new_X)
-
+    new_y = obj_fun(new_X)
     X = torch.cat((X, new_X),0)
     Y = torch.cat((Y, new_y.reshape(1,1)),0)
     return X, Y
@@ -85,16 +74,6 @@ def perform_random_iteration(X, Y):
     X = torch.cat((X, new_X),0)
     Y = torch.cat((Y, new_y.reshape(1,1)),0)
     return X, Y
-
-def perform_wrapper_rounding_experiment(seed : int, initial_design_size: int, budget: int) -> torch.Tensor:
-    random.seed(seed)
-    torch.random.manual_seed(seed)
-    X, Y = get_initial_results(initial_design_size)
-
-    for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, wrapped=True)
-
-    return Y
 
 def perform_BO_experiment(seed : int, initial_design_size: int, budget: int) -> torch.Tensor:
     random.seed(seed)
@@ -118,14 +97,13 @@ def perform_random_experiment(seed, initial_design_size, budget) -> torch.Tensor
 
 if __name__ == '__main__' :
     total_exps = 3
-    initial_design_size = 5
+    initial_design_size = 20
     budget = 35
-    n_methods = 3
+    n_methods = 2
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
     for exp in range(total_exps):
         results[0, :, exp] = perform_BO_experiment(exp, initial_design_size, budget).reshape((total_its))
         results[1, :, exp] = perform_random_experiment(exp, initial_design_size, budget).reshape((total_its))
-        results[2, :, exp] = perform_wrapper_rounding_experiment(exp, initial_design_size, budget).reshape((total_its))
         print(exp)
     plot_results(initial_design_size+budget, results)
