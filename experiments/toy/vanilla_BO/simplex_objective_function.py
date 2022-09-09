@@ -6,11 +6,10 @@ def objective_function(x): #Length of x: 5. Range [0,1]^5. To be maximized.
         raise Exception("Hypercube violated")
 
     y = torch.sum(x)
-    import pdb; pdb.set_trace();
     distance_wrt_simplex = torch.abs(torch.tensor(1.0)-y)
     penalization = 0
     if distance_wrt_simplex >= 1.0:
-        penalization = distance_wrt_simplex**3 #Penalizing solutions out of diagonal more.
+        penalization = distance_wrt_simplex**x.shape[0] #Penalizing solutions out of diagonal more.
     else:
         penalization = distance_wrt_simplex 
     return y - penalization
