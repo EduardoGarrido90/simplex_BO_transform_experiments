@@ -22,8 +22,17 @@ GLOBAL_MAXIMUM = 1.8
 def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
 
-def obj_fun(X_train): #Objective function. Needs to be only valid for the diagonal, or at least, more valid there.
+def obj_fun_2(X_train): #Objective function. Needs to be only valid for the diagonal, or at least, more valid there.
     return torch.tensor([np.sin(x[0])/(np.cos(x[1]) + np.sinh(x[2])) + torch.rand(1)/10.0 for x in X_train])
+
+def obj_fun(x): #Length of x: 5. Range [0,1]^5. To be maximized.
+    if torch.any(x > 1.0):
+        raise Exception("Hypercube violated")
+
+    y = torch.sum(x)
+    distance_wrt_simplex = torch.abs(torch.tensor(1.0)-y)
+    penalization = distance_wrt_simplex**x.shape[0] 
+    return y - penalization
 
 def wrapped_obj_fun(X_train):
     transformed_inputs = (X_train - 0.5) / 0.05
@@ -40,10 +49,9 @@ def plot_results(n_iters, results):
     ax.errorbar(
         X_plot, np.log10(GLOBAL_MAXIMUM - results[1].mean(axis=1)), yerr=ci(results[1], results.shape[2]), label="Random Search", linewidth=1.5, capsize=3, alpha=0.6,
     )
-    #ax.errorbar(
-    #    iters, y_ei_warp.mean(axis=0), yerr=ci(y_ei_warp), label="NEI + Input Warping",
-    #    linewidth=1.5, capsize=3, alpha=0.6,
-    #)
+    ax.errorbar(
+        X_plot, np.log10(GLOBAL_MAXIMUM - results[2].mean(axis=1)), yerr=ci(results[2], results.shape[2]), label="Wrapped objective function", linewidth=1.5, capsize=3, alpha=0.6,
+    )
     #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
     ax.set(xlabel='Number of observations', ylabel='Log10 Regret')
     ax.legend(loc="lower left")
@@ -53,14 +61,13 @@ def plot_results(n_iters, results):
 def get_initial_results(initial_design_size):
     n_dims = 3
     X = torch.rand(initial_design_size, n_dims)
-    Y = obj_fun(X).reshape((initial_design_size), 1)
-    return X, obj_fun(X).reshape((initial_design_size), 1)
+    Y = torch.tensor([obj_fun(x) for x in X]).reshape(X.shape[0], 1)
+    return X, Y
 
 def perform_BO_iteration(X, Y, wrapped=False):
     gp = SingleTaskGP(X, Y)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
     fit_gpytorch_model(mll)
-
 
     UCB = UpperConfidenceBound(gp, beta=0.1)
 
@@ -117,9 +124,9 @@ def perform_random_experiment(seed, initial_design_size, budget) -> torch.Tensor
     return Y
 
 if __name__ == '__main__' :
-    total_exps = 3
+    total_exps = 5
     initial_design_size = 5
-    budget = 35
+    budget = 10
     n_methods = 3
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
