@@ -47,6 +47,12 @@ def wrapped_obj_fun(X_train, name_obj_fun):
     X_train = torch.exp(transformed_inputs)/torch.sum(torch.exp(transformed_inputs)) #Sums to 1: ps assert(torch.sum(X_train)==1.0)
     return obj_fun(X_train, name_obj_fun)
 
+def penalize_obj_fun(X_train, name_obj_fun):
+    y = obj_fun(X_train, name_obj_fun)
+    sum_values = torch.sum(X_train)
+    penalization = torch.abs(torch.tensor(1.0)-sum_values)
+    return y-penalization
+
 def plot_results_log10_regret(n_iters, results):
     X_plot = np.linspace(1, n_iters, n_iters)
 
@@ -59,6 +65,9 @@ def plot_results_log10_regret(n_iters, results):
     )
     ax.errorbar(
         X_plot, np.log10(GLOBAL_MAXIMUM - results[2].mean(axis=1)), yerr=0.1*ci(results[2], results.shape[2]), label="Wrapped objective function", linewidth=1.5, capsize=3, alpha=0.6,
+    )
+    ax.errorbar(
+        X_plot, np.log10(GLOBAL_MAXIMUM - results[3].mean(axis=1)), yerr=0.1*ci(results[2], results.shape[2]), label="Penalized objective function", linewidth=1.5, capsize=3, alpha=0.6,
     )
     #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
     ax.set(xlabel='Number of observations', ylabel='Log10 Regret')
@@ -79,11 +88,11 @@ def get_best_results_list(y):
 def plot_results_log10_regret_acum(n_iters, results):
     X_plot = np.linspace(1, n_iters, n_iters)
 
-    import pdb; pdb.set_trace();
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
     y_0 = np.log10(GLOBAL_MAXIMUM - results[0].mean(axis=1))
     y_1 = np.log10(GLOBAL_MAXIMUM - results[1].mean(axis=1))
     y_2 = np.log10(GLOBAL_MAXIMUM - results[2].mean(axis=1))
+    y_3 = np.log10(GLOBAL_MAXIMUM - results[3].mean(axis=1))
 
     ax.errorbar(
         X_plot, get_best_results_list(y_0), yerr=0.1*ci(results[0], results.shape[2]), label="Vanilla BO", linewidth=1.5, capsize=3, alpha=0.6
@@ -94,8 +103,11 @@ def plot_results_log10_regret_acum(n_iters, results):
     ax.errorbar(
         X_plot, get_best_results_list(y_2), yerr=0.1*ci(results[2], results.shape[2]), label="Wrapped objective function", linewidth=1.5, capsize=3, alpha=0.6,
     )
+    ax.errorbar(
+        X_plot, get_best_results_list(y_3), yerr=0.1*ci(results[3], results.shape[2]), label="Penalized objective function", linewidth=1.5, capsize=3, alpha=0.6,
+    )
     #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
-    ax.set(xlabel='Number of observations', ylabel='Log10 Regret')
+    ax.set(xlabel='Number of observations', ylabel='Best observed Log10 Regret')
     ax.legend(loc="lower left")
     plt.title('Bayesian optimization results of the different methods')
     plt.show()
@@ -113,6 +125,9 @@ def plot_results(n_iters, results):
     ax.errorbar(
         X_plot, results[2].mean(axis=1), yerr=0.1 * ci(results[2], results.shape[2]), label="Wrapped objective function", linewidth=1.5, capsize=3, alpha=0.6,
     )
+    ax.errorbar(
+        X_plot, results[3].mean(axis=1), yerr=0.1 * ci(results[2], results.shape[2]), label="Penalized objective function", linewidth=1.5, capsize=3, alpha=0.6,
+    )
     #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
     ax.set(xlabel='Number of observations', ylabel='Objective function')
     ax.legend(loc="lower left")
@@ -125,11 +140,16 @@ def get_initial_results(initial_design_size, name_obj_fun):
     Y = torch.tensor([obj_fun(x, name_obj_fun) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
-def perform_BO_iteration(X, Y, name_obj_fun, wrapped=False):
+def perform_BO_iteration(X, Y, name_obj_fun, wrapped=False, penalize=False):
     gp = SingleTaskGP(X, Y)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
-    fit_gpytorch_model(mll)
-
+    try:
+        fit_gpytorch_model(mll)
+    except: #Numerical issues.
+        import gpytorch
+        gpytorch.settings.cholesky_jitter._global_float_value = 1e-02 #Ill-conditioned matrix, adding more jitter to diagonal for cholesky.
+        fit_gpytorch_model(mll)
+        gpytorch.settings.cholesky_jitter._global_float_value = 1e-06 #Restoring.
     UCB = UpperConfidenceBound(gp, beta=0.1)
 
 
@@ -140,6 +160,8 @@ def perform_BO_iteration(X, Y, name_obj_fun, wrapped=False):
 
     if wrapped:
         new_y = wrapped_obj_fun(new_X, name_obj_fun)
+    elif penalize:
+        new_y = penalize_obj_fun(new_X, name_obj_fun)
     else:
         new_y = obj_fun(new_X, name_obj_fun)
 
@@ -164,6 +186,17 @@ def perform_wrapper_rounding_experiment(seed : int, initial_design_size: int, bu
 
     return Y
 
+def perform_wrapper_penalizing_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str) -> torch.Tensor:
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, name_obj_fun)
+
+    for i in range(budget):
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, penalize=True)
+
+    return Y
+
+
 def perform_BO_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str) -> torch.Tensor:
     random.seed(seed)
     torch.random.manual_seed(seed)
@@ -187,8 +220,8 @@ def perform_random_experiment(seed, initial_design_size, budget, name_obj_fun) -
 if __name__ == '__main__' :
     total_exps = 3
     initial_design_size = 5
-    budget = 20
-    n_methods = 3
+    budget = 30
+    n_methods = 4
     name_obj_fun = 'sphere'
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
@@ -196,6 +229,6 @@ if __name__ == '__main__' :
         results[0, :, exp] = perform_BO_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
         results[1, :, exp] = perform_random_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
         results[2, :, exp] = perform_wrapper_rounding_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
+        results[3, :, exp] = perform_wrapper_penalizing_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
         print(exp)
-    import pdb; pdb.set_trace();
     plot_results_log10_regret_acum(initial_design_size+budget, results)
