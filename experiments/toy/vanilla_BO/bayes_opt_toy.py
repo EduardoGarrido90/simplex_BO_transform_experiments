@@ -150,9 +150,7 @@ def perform_BO_iteration(X, Y, name_obj_fun, wrapped=False, penalize=False):
         gpytorch.settings.cholesky_jitter._global_float_value = 1e-02 #Ill-conditioned matrix, adding more jitter to diagonal for cholesky.
         fit_gpytorch_model(mll)
         gpytorch.settings.cholesky_jitter._global_float_value = 1e-06 #Restoring.
-    import pdb; pdb.set_trace();
     UCB = UpperConfidenceBound(gp, beta=0.1)
-    import pdb; pdb.set_trace();
 
 
     bounds = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
@@ -222,7 +220,7 @@ def perform_random_experiment(seed, initial_design_size, budget, name_obj_fun) -
 if __name__ == '__main__' :
     total_exps = 3
     initial_design_size = 5
-    budget = 30
+    budget = 25
     n_methods = 4
     name_obj_fun = 'sphere'
     total_its = initial_design_size + budget
