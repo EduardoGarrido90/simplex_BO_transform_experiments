@@ -49,16 +49,50 @@ def wrapped_obj_fun(X_train, name_obj_fun):
 
 def plot_results_log10_regret(n_iters, results):
     X_plot = np.linspace(1, n_iters, n_iters)
-    
+
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
     ax.errorbar(
-        X_plot, np.log10(GLOBAL_MAXIMUM - results[0].mean(axis=1)), yerr=ci(results[0], results.shape[2]), label="Vanilla BO", linewidth=1.5, capsize=3, alpha=0.6
+        X_plot, np.log10(GLOBAL_MAXIMUM - results[0].mean(axis=1)), yerr=0.1*ci(results[0], results.shape[2]), label="Vanilla BO", linewidth=1.5, capsize=3, alpha=0.6
     )
     ax.errorbar(
-        X_plot, np.log10(GLOBAL_MAXIMUM - results[1].mean(axis=1)), yerr=ci(results[1], results.shape[2]), label="Random Search", linewidth=1.5, capsize=3, alpha=0.6,
+        X_plot, np.log10(GLOBAL_MAXIMUM - results[1].mean(axis=1)), yerr=0.1*ci(results[1], results.shape[2]), label="Random Search", linewidth=1.5, capsize=3, alpha=0.6,
     )
     ax.errorbar(
-        X_plot, np.log10(GLOBAL_MAXIMUM - results[2].mean(axis=1)), yerr=ci(results[2], results.shape[2]), label="Wrapped objective function", linewidth=1.5, capsize=3, alpha=0.6,
+        X_plot, np.log10(GLOBAL_MAXIMUM - results[2].mean(axis=1)), yerr=0.1*ci(results[2], results.shape[2]), label="Wrapped objective function", linewidth=1.5, capsize=3, alpha=0.6,
+    )
+    #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
+    ax.set(xlabel='Number of observations', ylabel='Log10 Regret')
+    ax.legend(loc="lower left")
+    plt.title('Bayesian optimization results of the different methods')
+    plt.show()
+
+def get_best_results_list(y):
+    best = y[0]
+    counter = 0
+    for y_i in y:
+        if(y_i<best):
+            best = y_i
+        y[counter] = best
+        counter = counter + 1
+    return y
+
+def plot_results_log10_regret_acum(n_iters, results):
+    X_plot = np.linspace(1, n_iters, n_iters)
+
+    import pdb; pdb.set_trace();
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    y_0 = np.log10(GLOBAL_MAXIMUM - results[0].mean(axis=1))
+    y_1 = np.log10(GLOBAL_MAXIMUM - results[1].mean(axis=1))
+    y_2 = np.log10(GLOBAL_MAXIMUM - results[2].mean(axis=1))
+
+    ax.errorbar(
+        X_plot, get_best_results_list(y_0), yerr=0.1*ci(results[0], results.shape[2]), label="Vanilla BO", linewidth=1.5, capsize=3, alpha=0.6
+    )
+    ax.errorbar(
+        X_plot, get_best_results_list(y_1), yerr=0.1*ci(results[1], results.shape[2]), label="Random Search", linewidth=1.5, capsize=3, alpha=0.6,
+    )
+    ax.errorbar(
+        X_plot, get_best_results_list(y_2), yerr=0.1*ci(results[2], results.shape[2]), label="Wrapped objective function", linewidth=1.5, capsize=3, alpha=0.6,
     )
     #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
     ax.set(xlabel='Number of observations', ylabel='Log10 Regret')
@@ -153,7 +187,7 @@ def perform_random_experiment(seed, initial_design_size, budget, name_obj_fun) -
 if __name__ == '__main__' :
     total_exps = 3
     initial_design_size = 5
-    budget = 10
+    budget = 20
     n_methods = 3
     name_obj_fun = 'sphere'
     total_its = initial_design_size + budget
@@ -164,4 +198,4 @@ if __name__ == '__main__' :
         results[2, :, exp] = perform_wrapper_rounding_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
         print(exp)
     import pdb; pdb.set_trace();
-    plot_results_log10_regret(initial_design_size+budget, results)
+    plot_results_log10_regret_acum(initial_design_size+budget, results)
