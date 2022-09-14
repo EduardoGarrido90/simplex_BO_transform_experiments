@@ -4,6 +4,7 @@ from botorch.fit import fit_gpytorch_model
 from botorch.utils import standardize
 from botorch.acquisition import UpperConfidenceBound
 from botorch.optim import optimize_acqf
+from botorch.models.transforms.input import Simplex
 from gpytorch.mlls import ExactMarginalLogLikelihood
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +18,7 @@ from scipy.special import softmax
 #TODO 4: Use Daniel transformation.
 #TODO 5: Experiments.
 
-GLOBAL_MAXIMUM = 1.0
+GLOBAL_MAXIMUM = 1.01
 
 def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
@@ -67,7 +68,10 @@ def plot_results_log10_regret(n_iters, results):
         X_plot, np.log10(GLOBAL_MAXIMUM - results[2].mean(axis=1)), yerr=0.1*ci(results[2], results.shape[2]), label="Wrapped objective function", linewidth=1.5, capsize=3, alpha=0.6,
     )
     ax.errorbar(
-        X_plot, np.log10(GLOBAL_MAXIMUM - results[3].mean(axis=1)), yerr=0.1*ci(results[2], results.shape[2]), label="Penalized objective function", linewidth=1.5, capsize=3, alpha=0.6,
+        X_plot, np.log10(GLOBAL_MAXIMUM - results[3].mean(axis=1)), yerr=0.1*ci(results[3], results.shape[2]), label="Penalized objective function", linewidth=1.5, capsize=3, alpha=0.6,
+    )
+    ax.errorbar(
+        X_plot, np.log10(GLOBAL_MAXIMUM - results[4].mean(axis=1)), yerr=0.1*ci(results[4], results.shape[2]), label="Simplex transformation", linewidth=1.5, capsize=3, alpha=0.6,
     )
     #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
     ax.set(xlabel='Number of observations', ylabel='Log10 Regret')
@@ -93,6 +97,7 @@ def plot_results_log10_regret_acum(n_iters, results):
     y_1 = np.log10(GLOBAL_MAXIMUM - results[1].mean(axis=1))
     y_2 = np.log10(GLOBAL_MAXIMUM - results[2].mean(axis=1))
     y_3 = np.log10(GLOBAL_MAXIMUM - results[3].mean(axis=1))
+    y_4 = np.log10(GLOBAL_MAXIMUM - results[4].mean(axis=1))
 
     ax.errorbar(
         X_plot, get_best_results_list(y_0), yerr=0.1*ci(results[0], results.shape[2]), label="Vanilla BO", linewidth=1.5, capsize=3, alpha=0.6
@@ -105,6 +110,9 @@ def plot_results_log10_regret_acum(n_iters, results):
     )
     ax.errorbar(
         X_plot, get_best_results_list(y_3), yerr=0.1*ci(results[3], results.shape[2]), label="Penalized objective function", linewidth=1.5, capsize=3, alpha=0.6,
+    )
+    ax.errorbar(
+        X_plot, get_best_results_list(y_4), yerr=0.1*ci(results[4], results.shape[2]), label="Simplex transformation", linewidth=1.5, capsize=3, alpha=0.6,
     )
     #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
     ax.set(xlabel='Number of observations', ylabel='Best observed Log10 Regret')
@@ -140,9 +148,14 @@ def get_initial_results(initial_design_size, name_obj_fun):
     Y = torch.tensor([obj_fun(x, name_obj_fun) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
-def perform_BO_iteration(X, Y, name_obj_fun, wrapped=False, penalize=False):
-    gp = SingleTaskGP(X, Y)
+def perform_BO_iteration(X, Y, name_obj_fun, wrapped=False, penalize=False, apply_simplex=False):
+    if not apply_simplex:
+        gp = SingleTaskGP(X, Y)
+    else:
+        simplex = Simplex(indices=list(range(X.shape[-1])))
+        gp = SingleTaskGP(X, Y, input_transform=simplex)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
+    
     try:
         fit_gpytorch_model(mll)
     except: #Numerical issues.
@@ -197,6 +210,16 @@ def perform_wrapper_penalizing_experiment(seed : int, initial_design_size: int, 
     return Y
 
 
+def perform_simplex_transformation_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str) -> torch.Tensor:
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, name_obj_fun)
+
+    for i in range(budget):
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, apply_simplex=True)
+
+    return Y
+
 def perform_BO_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str) -> torch.Tensor:
     random.seed(seed)
     torch.random.manual_seed(seed)
@@ -218,10 +241,10 @@ def perform_random_experiment(seed, initial_design_size, budget, name_obj_fun) -
     return Y
 
 if __name__ == '__main__' :
-    total_exps = 3
+    total_exps = 1
     initial_design_size = 5
-    budget = 25
-    n_methods = 4
+    budget = 20
+    n_methods = 5
     name_obj_fun = 'sphere'
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
@@ -230,5 +253,6 @@ if __name__ == '__main__' :
         results[1, :, exp] = perform_random_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
         results[2, :, exp] = perform_wrapper_rounding_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
         results[3, :, exp] = perform_wrapper_penalizing_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
+        results[4, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
         print(exp)
     plot_results_log10_regret_acum(initial_design_size+budget, results)
