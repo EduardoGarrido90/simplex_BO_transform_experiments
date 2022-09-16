@@ -19,10 +19,17 @@ from scipy.special import softmax
 GLOBAL_MAXIMUM = 1.01
 
 def normalize_points(X, bounds):
+    Y= X.clone()
     bounds = bounds.T
-    min_bounds = bounds[0].repeat(X.shape[0]).reshape((X.shape[0],X.shape[1]))
-    max_bounds = bounds[1].repeat(X.shape[0]).reshape((X.shape[0],X.shape[1]))
-    return (X-min_bounds)/(max_bounds-min_bounds) #(x_i-x_min)/(x_max-x_min)
+    min_bounds = bounds[0].repeat(Y.shape[0]).reshape((Y.shape[0], Y.shape[1]))
+    max_bounds = bounds[1].repeat(Y.shape[0]).reshape((Y.shape[0], Y.shape[1]))
+    return (Y-min_bounds)/(max_bounds-min_bounds) #(x_i-x_min)/(x_max-x_min)
+
+def unnormalize_points(X, bounds):
+    Y = X.clone()
+    for dim in range(X.shape[1]):
+        Y[:,dim] = Y[:,dim]*(bounds[dim,1]-bounds[dim,0])+bounds[dim,0]
+    return Y
 
 def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
@@ -30,14 +37,16 @@ def ci(y, n_exps): #Confidence interval.
 def obj_fun_2(X_train): #Objective function. Needs to be only valid for the diagonal, or at least, more valid there.
     return torch.tensor([np.sin(x[0])/(np.cos(x[1]) + np.sinh(x[2])) + torch.rand(1)/10.0 for x in X_train])
 
-def simplex_penalization(x):
+def simplex_penalization(x, bounds):
+    x = unnormalize_points(x.reshape(1, x.shape[0]), bounds)[0]
     max_bounds = 5.0 #The maximum range. 
     sum_values = torch.sum(x)
     distance_wrt_simplex = torch.abs(torch.tensor(max_bounds)-sum_values)
     penalization = 100 * distance_wrt_simplex
     return penalization
 
-def branin_function(x): #To minimize, tested OK.
+def branin_function(x, bounds): #To minimize, tested OK.
+    x = unnormalize_points(x.reshape(1, x.shape[0]), bounds)[0]
     a=1.0
     b=5.1/(4.0*np.pi**2)
     c=5.0/np.pi
@@ -47,16 +56,17 @@ def branin_function(x): #To minimize, tested OK.
     f=a*(x[1]-b*x[0]**2+c*x[0]-r)**2+s*(1-t)*torch.cos(x[0])+s
     return f
 
-def penalized_branin(x):
+def penalized_branin(x, bounds):
     if len(x.shape) == 2:
         x = x.reshape(x.shape[1])
-    return branin_function(x) + simplex_penalization(x)
+    return branin_function(x, bounds) + simplex_penalization(x, bounds)
 
-def sphere_obj_function(x): #Length of x: 5. Range [0,1]^5. To be maximized.
+def sphere_obj_function(x, bounds): #Length of x: 5. Range [0,1]^5. To be maximized.
     if torch.any(x > 1.0):
         raise Exception("Hypercube violated")
     if len(x.shape) == 2:
         x = x.reshape(x.shape[1])
+    x = unnormalize_points(x.reshape(1, x.shape[0]), bounds)[0]
     sum_values = torch.sum(x)
     y = torch.sum(x**2.0) #Sphere function.
     #y = (100.0*torch.sin(x[0]) + 100.0*torch.cos(x[1])) / (1.0 + 30.0*torch.sin(x[2]))
@@ -64,11 +74,12 @@ def sphere_obj_function(x): #Length of x: 5. Range [0,1]^5. To be maximized.
     penalization = 100 * distance_wrt_simplex
     return y - penalization
 
-def sphere_obj_function_old(x): #Length of x: 5. Range [0,1]^5. To be maximized.
+def sphere_obj_function_old(x, bounds): #Length of x: 5. Range [0,1]^5. To be maximized.
     if torch.any(x > 1.0):
         raise Exception("Hypercube violated")
     if len(x.shape) == 2:
         x = x.reshape(x.shape[1])
+    x = unnormalize_points(x.reshape(1, x.shape[0]), bounds)[0]
     sum_values = torch.sum(x)
     y = torch.sum(x**2.0) #Sphere function.
     #y = (100.0*torch.sin(x[0]) + 100.0*torch.cos(x[1])) / (1.0 + 30.0*torch.sin(x[2]))
@@ -77,20 +88,20 @@ def sphere_obj_function_old(x): #Length of x: 5. Range [0,1]^5. To be maximized.
     return y - penalization
 
 
-def obj_fun(x, name):
+def obj_fun(x, name, bounds):
     if name == 'sphere':
-        y = sphere_obj_function(x)
+        y = sphere_obj_function(x, bounds)
     else:
-        y = penalized_branin(x)
+        y = penalized_branin(x, bounds)
     return y
 
-def wrapped_obj_fun(X_train, name_obj_fun):
+def wrapped_obj_fun(X_train, name_obj_fun, bounds):
     transformed_inputs = (X_train - 0.5) / 0.05
     X_train = torch.exp(transformed_inputs)/torch.sum(torch.exp(transformed_inputs)) #Sums to 1: ps assert(torch.sum(X_train)==1.0)
-    return obj_fun(X_train, name_obj_fun)
+    return obj_fun(X_train, name_obj_fun, bounds)
 
-def penalize_obj_fun(X_train, name_obj_fun):
-    y = obj_fun(X_train, name_obj_fun)
+def penalize_obj_fun(X_train, name_obj_fun, bounds):
+    y = obj_fun(X_train, name_obj_fun, bounds)
     sum_values = torch.sum(X_train)
     penalization = torch.abs(torch.tensor(1.0)-sum_values)
     return y-penalization
@@ -185,28 +196,18 @@ def plot_results(n_iters, results):
 
 def get_initial_results(initial_design_size, name_obj_fun, bounds):
     X = []
-    if name_obj_fun == 'sphere':
-        n_dims = 3
-        X = torch.rand(initial_design_size, n_dims)
-    else:
-        n_dims = 2
-        X = torch.rand(initial_design_size, n_dims)
-        X[:,0] = torch.rand(initial_design_size, n_dims)[:,0]*(bounds[0,1]-bounds[0,0])+bounds[0,0]
-        X[:,1] = torch.rand(initial_design_size, n_dims)[:,1]*(bounds[1,1]-bounds[1,0])+bounds[1,0]
-    Y = torch.tensor([obj_fun(x, name_obj_fun) for x in X]).reshape(X.shape[0], 1)
+    n_dims = bounds.shape[1]
+    X = torch.rand(initial_design_size, n_dims)
+    Y = torch.tensor([obj_fun(x, name_obj_fun, bounds) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
-def perform_BO_iteration(X, Y, name_obj_fun, normalize=False, wrapped=False, penalize=False, apply_simplex=False):
-    if name_obj_fun == 'sphere':
-        bounds = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
-    else:
-        #bounds = torch.stack([torch.tensor([-5,0]), torch.tensor([10,15])])
-        bounds = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
+def perform_BO_iteration(X, Y, name_obj_fun, bounds, normalize=False, wrapped=False, penalize=False, apply_simplex=False):
 
     if not apply_simplex:
         gp = SingleTaskGP(X, Y)
     else:
         #normalize = Normalize(d=X.shape[1], bounds=bounds)
+        import pdb; pdb.set_trace();
         simplex = Simplex(indices=list(range(X.shape[-1])))
         #tf = ChainedInputTransform(tf1=normalize, tf2=simplex)
         #gp = SingleTaskGP(X, Y, input_transform=tf)
@@ -220,102 +221,96 @@ def perform_BO_iteration(X, Y, name_obj_fun, normalize=False, wrapped=False, pen
         gpytorch.settings.cholesky_jitter._global_float_value = 1e-02 #Ill-conditioned matrix, adding more jitter to diagonal for cholesky.
         fit_gpytorch_model(mll)
         gpytorch.settings.cholesky_jitter._global_float_value = 1e-06 #Restoring.
+    
     UCB = UpperConfidenceBound(gp, beta=0.1, maximize=False)
-
+    bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
     new_X, acq_value = optimize_acqf(
-            UCB, bounds=bounds, q=1, num_restarts=5, raw_samples=20,
+            UCB, bounds=bounds_cube, q=1, num_restarts=5, raw_samples=20,
     )
-
     if wrapped:
-        new_y = wrapped_obj_fun(new_X, name_obj_fun)
+        new_y = wrapped_obj_fun(new_X, name_obj_fun, bounds)
     elif penalize:
-        new_y = penalize_obj_fun(new_X, name_obj_fun)
+        new_y = penalize_obj_fun(new_X, name_obj_fun, bounds)
     else:
-        new_y = obj_fun(new_X, name_obj_fun)
-
+        new_y = obj_fun(new_X, name_obj_fun, bounds)
     X = torch.cat((X, new_X),0)
     Y = torch.cat((Y, new_y.reshape(1,1)),0)
     return X, Y
 
-def perform_random_iteration(X, Y, name_obj_fun):
+def perform_random_iteration(X, Y, name_obj_fun, bounds):
     new_X = torch.rand(1, X.shape[1])
-    new_y = obj_fun(new_X, name_obj_fun)
+    new_y = obj_fun(new_X, name_obj_fun, bounds)
     X = torch.cat((X, new_X),0)
     Y = torch.cat((Y, new_y.reshape(1,1)),0)
     return X, Y
 
-def perform_wrapper_rounding_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str) -> torch.Tensor:
+def perform_wrapper_rounding_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str, bounds) -> torch.Tensor:
     random.seed(seed)
     torch.random.manual_seed(seed)
-    X, Y = get_initial_results(initial_design_size, name_obj_fun)
-    X = normalize_points(X)
-
-    for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, wrapped=True)
-
-    return Y
-
-def perform_wrapper_penalizing_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str) -> torch.Tensor:
-    random.seed(seed)
-    torch.random.manual_seed(seed)
-    X, Y = get_initial_results(initial_design_size, name_obj_fun)
-
-    for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, penalize=True)
-
-    return Y
-
-
-def perform_simplex_transformation_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str) -> torch.Tensor:
-    random.seed(seed)
-    torch.random.manual_seed(seed)
-    X, Y = get_initial_results(initial_design_size, name_obj_fun)
-
-    for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, apply_simplex=True)
-
-    return Y
-
-def perform_BO_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str) -> torch.Tensor:
-    random.seed(seed)
-    torch.random.manual_seed(seed)
-    bounds = torch.stack([torch.tensor([-5,0]), torch.tensor([10,15])])
     X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
-    import pdb; pdb.set_trace();
-    X = normalize_points(X, bounds)
+
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun)
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, wrapped=True)
 
     return Y
 
-def perform_random_experiment(seed, initial_design_size, budget, name_obj_fun) -> torch.Tensor:
+def perform_wrapper_penalizing_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str, bounds) -> torch.Tensor:
     random.seed(seed)
     torch.random.manual_seed(seed)
-    X, Y = get_initial_results(initial_design_size, name_obj_fun)
+    X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
 
     for i in range(budget):
-        X, Y = perform_random_iteration(X, Y, name_obj_fun)
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, penalize=True)
+
+    return Y
+
+
+def perform_simplex_transformation_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str, bounds) -> torch.Tensor:
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
+
+    for i in range(budget):
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, apply_simplex=True)
+
+    return Y
+
+def perform_BO_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str, bounds) -> torch.Tensor:
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
+    for i in range(budget):
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds)
+
+    return Y
+
+def perform_random_experiment(seed, initial_design_size, budget, name_obj_fun, bounds) -> torch.Tensor:
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
+
+    for i in range(budget):
+        X, Y = perform_random_iteration(X, Y, name_obj_fun, bounds)
 
     return Y
 
 if __name__ == '__main__' :
     #Tests.
-    #import pdb; pdb.set_trace();
     #normalize_points(torch.tensor([3,-1]), torch.tensor([[-4.5,-4.5],[4.5,4.5]]))
-    #import pdb; pdb.set_trace();
     #branin(torch.tensor([9.42478, 2.475]))
-    total_exps = 3
+    total_exps = 1
     initial_design_size = 5
-    budget = 30
+    budget = 20
     n_methods = 5
     name_obj_fun = 'branin'
+    bounds = torch.stack([torch.tensor([-5,0]), torch.tensor([10,15])])
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
     for exp in range(total_exps):
-        results[0, :, exp] = perform_BO_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
-        results[1, :, exp] = perform_random_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
-        results[2, :, exp] = perform_wrapper_rounding_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
-        results[3, :, exp] = perform_wrapper_penalizing_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
-        results[4, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, name_obj_fun).reshape((total_its))
+        results[0, :, exp] = perform_BO_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
+        results[1, :, exp] = perform_random_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
+        results[2, :, exp] = perform_wrapper_rounding_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
+        results[3, :, exp] = perform_wrapper_penalizing_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
+        results[4, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
         print(exp)
     plot_results_log10_regret_acum(initial_design_size+budget, results)
