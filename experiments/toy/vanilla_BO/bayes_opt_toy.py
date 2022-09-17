@@ -206,10 +206,10 @@ def get_initial_results(initial_design_size, name_obj_fun, bounds):
     return X, Y
 
 def plot_acq_fun_model_posterior(acq_fun, X, model):
-    import pdb; pdb.set_trace();
-    grid = torch.tensor(sobol.sample(dimension=X.shape[1], n_points=1000))
+    grid = torch.tensor(sobol.sample(dimension=X.shape[1], n_points=1000)).float()
     acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1])))
     posterior_grid = model.posterior(grid).mean
+    import pdb; pdb.set_trace();
 
 
 def perform_BO_iteration(X, Y, name_obj_fun, bounds, normalize=False, wrapped=False, penalize=False, apply_simplex=False, plot_acq_model=True):
