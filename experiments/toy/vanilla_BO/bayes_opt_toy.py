@@ -1,4 +1,5 @@
 import torch
+import sobol
 from botorch.models import SingleTaskGP
 from botorch.fit import fit_gpytorch_model
 from botorch.utils import standardize
@@ -16,7 +17,7 @@ from scipy.special import softmax
 #Design a very simple problem with 2 dimensions to see how the acquisition function behaves there with a plot.
 #Design Daniel transformation.
 
-GLOBAL_MAXIMUM = 1.01
+GLOBAL_MAXIMUM = 1000
 
 def normalize_points(X, bounds):
     Y= X.clone()
@@ -186,7 +187,10 @@ def plot_results(n_iters, results):
         X_plot, results[2].mean(axis=1), yerr=0.1 * ci(results[2], results.shape[2]), label="Wrapped objective function", linewidth=1.5, capsize=3, alpha=0.6,
     )
     ax.errorbar(
-        X_plot, results[3].mean(axis=1), yerr=0.1 * ci(results[2], results.shape[2]), label="Penalized objective function", linewidth=1.5, capsize=3, alpha=0.6,
+        X_plot, results[3].mean(axis=1), yerr=0.1 * ci(results[3], results.shape[2]), label="Penalized objective function", linewidth=1.5, capsize=3, alpha=0.6,
+    )
+    ax.errorbar(
+        X_plot, results[3].mean(axis=1), yerr=0.1 * ci(results[4], results.shape[2]), label="Simplex transformation", linewidth=1.5, capsize=3, alpha=0.6,
     )
     #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
     ax.set(xlabel='Number of observations', ylabel='Objective function')
@@ -201,14 +205,21 @@ def get_initial_results(initial_design_size, name_obj_fun, bounds):
     Y = torch.tensor([obj_fun(x, name_obj_fun, bounds) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
-def perform_BO_iteration(X, Y, name_obj_fun, bounds, normalize=False, wrapped=False, penalize=False, apply_simplex=False):
+def plot_acq_fun_model_posterior(acq_fun, X, model):
+    import pdb; pdb.set_trace();
+    grid = torch.tensor(sobol.sample(dimension=X.shape[1], n_points=1000))
+    acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1])))
+    posterior_grid = model.posterior(grid).mean
+
+
+def perform_BO_iteration(X, Y, name_obj_fun, bounds, normalize=False, wrapped=False, penalize=False, apply_simplex=False, plot_acq_model=True):
 
     if not apply_simplex:
         gp = SingleTaskGP(X, Y)
     else:
         #normalize = Normalize(d=X.shape[1], bounds=bounds)
         import pdb; pdb.set_trace();
-        simplex = Simplex(indices=list(range(X.shape[-1])))
+        simplex = Simplex(indices=list(range(X.shape[-1]))) #Print acq. fun.
         #tf = ChainedInputTransform(tf1=normalize, tf2=simplex)
         #gp = SingleTaskGP(X, Y, input_transform=tf)
         gp = SingleTaskGP(X, Y, input_transform=simplex)
@@ -224,6 +235,8 @@ def perform_BO_iteration(X, Y, name_obj_fun, bounds, normalize=False, wrapped=Fa
     
     UCB = UpperConfidenceBound(gp, beta=0.1, maximize=False)
     bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
+    if plot_acq_model:
+        plot_acq_fun_model_posterior(UCB, X, gp)
     new_X, acq_value = optimize_acqf(
             UCB, bounds=bounds_cube, q=1, num_restarts=5, raw_samples=20,
     )
@@ -300,7 +313,7 @@ if __name__ == '__main__' :
     #branin(torch.tensor([9.42478, 2.475]))
     total_exps = 1
     initial_design_size = 5
-    budget = 20
+    budget = 2
     n_methods = 5
     name_obj_fun = 'branin'
     bounds = torch.stack([torch.tensor([-5,0]), torch.tensor([10,15])])
@@ -313,4 +326,5 @@ if __name__ == '__main__' :
         results[3, :, exp] = perform_wrapper_penalizing_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
         results[4, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
         print(exp)
-    plot_results_log10_regret_acum(initial_design_size+budget, results)
+    #plot_results_log10_regret_acum(initial_design_size+budget, results)
+    plot_results(initial_design_size+budget, results)
