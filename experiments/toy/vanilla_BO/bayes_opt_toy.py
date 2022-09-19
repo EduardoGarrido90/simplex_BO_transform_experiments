@@ -15,6 +15,7 @@ from scipy.special import softmax
 
 #The transformation seems to fail with the acquisition function.
 #Design a very simple problem with 2 dimensions to see how the acquisition function behaves there with a plot.
+#Include the value of the real function.
 #Design Daniel transformation.
 
 GLOBAL_MAXIMUM = 1000
@@ -205,10 +206,11 @@ def get_initial_results(initial_design_size, name_obj_fun, bounds):
     Y = torch.tensor([obj_fun(x, name_obj_fun, bounds) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
-def plot_acq_fun_model_posterior(acq_fun, X, model):
+def plot_acq_fun_model_posterior(acq_fun, X, model, bounds, fun_name):
     grid = torch.tensor(sobol.sample(dimension=X.shape[1], n_points=1000)).float()
     acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1])))
     posterior_grid = model.posterior(grid).mean
+    function_grid = obj_fun(X, fun_name, bounds)
     import pdb; pdb.set_trace();
 
 
@@ -236,7 +238,7 @@ def perform_BO_iteration(X, Y, name_obj_fun, bounds, normalize=False, wrapped=Fa
     UCB = UpperConfidenceBound(gp, beta=0.1, maximize=False)
     bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
     if plot_acq_model:
-        plot_acq_fun_model_posterior(UCB, X, gp)
+        plot_acq_fun_model_posterior(UCB, X, gp, bounds, name_obj_fun)
     new_X, acq_value = optimize_acqf(
             UCB, bounds=bounds_cube, q=1, num_restarts=5, raw_samples=20,
     )
