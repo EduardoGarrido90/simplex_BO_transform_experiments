@@ -40,11 +40,11 @@ def obj_fun_2(X_train): #Objective function. Needs to be only valid for the diag
     return torch.tensor([np.sin(x[0])/(np.cos(x[1]) + np.sinh(x[2])) + torch.rand(1)/10.0 for x in X_train])
 
 def simplex_penalization(x, bounds):
-    x = unnormalize_points(x.reshape(1, x.shape[0]), bounds)[0]
-    max_bounds = 5.0 #The maximum range. 
+    max_bounds = torch.abs(bounds[0,0]-bounds[0,1]) #The maximum range. 
+    x = x * max_bounds
     sum_values = torch.sum(x)
-    distance_wrt_simplex = torch.abs(torch.tensor(max_bounds)-sum_values)
-    penalization = 100 * distance_wrt_simplex
+    distance_wrt_simplex = torch.abs(max_bounds-sum_values)
+    penalization = 10 * distance_wrt_simplex
     return penalization
 
 def branin_function(x, bounds): #To minimize, tested OK.
@@ -206,11 +206,29 @@ def get_initial_results(initial_design_size, name_obj_fun, bounds):
     Y = torch.tensor([obj_fun(x, name_obj_fun, bounds) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
-def plot_acq_fun_model_posterior(acq_fun, X, model, bounds, fun_name):
-    grid = torch.tensor(sobol.sample(dimension=X.shape[1], n_points=1000)).float()
-    acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1])))
-    posterior_grid = model.posterior(grid).mean
-    function_grid = obj_fun(X, fun_name, bounds)
+def meshgrid_to_2d_grid(X, Y):
+    final_piece = torch.vstack((X[0,0].repeat(len(X[0])),Y[0])).T
+    for i in range(len(X[0])-1):
+        final_piece = torch.cat((final_piece,torch.vstack((X[i+1,0].repeat(len(X[0])),Y[0])).T))
+    return final_piece
+
+def plot_acq_fun_model_posterior(acq_fun, obs_input, model, bounds, fun_name):
+    grid_x = torch.linspace(0.0, 1.0, 100)
+    grid_y = torch.linspace(0.0, 1.0, 100)
+    X, Y = torch.meshgrid(grid_x, grid_y)
+    grid = meshgrid_to_2d_grid(X, Y)
+    #acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1])))
+    #posterior_grid = model.posterior(grid).mean[:,0]
+    #function_grid = torch.sum(grid**2.0, axis=1)
+    function_grid = torch.tensor([obj_fun(x, name_obj_fun, bounds) for x in grid])
+    fig,ax=plt.subplots(1,1)
+    grid_dim = len(grid_x)
+    cp = ax.contourf(grid[:,0].reshape(grid_dim, grid_dim), grid[:,1].reshape(grid_dim, grid_dim), function_grid.reshape(grid_dim, grid_dim))
+    fig.colorbar(cp) # Add a colorbar to a plot
+    ax.set_title('Objective function')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    plt.show()
     import pdb; pdb.set_trace();
 
 
