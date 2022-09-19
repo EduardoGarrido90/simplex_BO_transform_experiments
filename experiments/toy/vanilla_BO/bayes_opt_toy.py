@@ -212,27 +212,53 @@ def meshgrid_to_2d_grid(X, Y):
         final_piece = torch.cat((final_piece,torch.vstack((X[i+1,0].repeat(len(X[0])),Y[0])).T))
     return final_piece
 
-def plot_acq_fun_model_posterior(acq_fun, obs_input, model, bounds, fun_name):
+def plot_acq_fun_model_posterior(acq_fun, obs_input, model, bounds, fun_name, iteration):
     grid_x = torch.linspace(0.0, 1.0, 100)
     grid_y = torch.linspace(0.0, 1.0, 100)
     X, Y = torch.meshgrid(grid_x, grid_y)
     grid = meshgrid_to_2d_grid(X, Y)
-    #acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1])))
-    #posterior_grid = model.posterior(grid).mean[:,0]
+    acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1]))).detach()
+    posterior_grid = model.posterior(grid).mean[:,0].detach()
     #function_grid = torch.sum(grid**2.0, axis=1)
     function_grid = torch.tensor([obj_fun(x, name_obj_fun, bounds) for x in grid])
+    
     fig,ax=plt.subplots(1,1)
     grid_dim = len(grid_x)
     cp = ax.contourf(grid[:,0].reshape(grid_dim, grid_dim), grid[:,1].reshape(grid_dim, grid_dim), function_grid.reshape(grid_dim, grid_dim))
     fig.colorbar(cp) # Add a colorbar to a plot
-    ax.set_title('Objective function')
+    ax.set_title('Objective function. Iteration ' + str(iteration))
     ax.set_xlabel('x')
     ax.set_ylabel('y')
+    plt.savefig('./images/obj_fun_' + str(iteration) + '.png')
     plt.show()
+    plt.clf()
+    plt.close()
+
+    fig,ax=plt.subplots(1,1)
+    cp = ax.contourf(grid[:,0].reshape(grid_dim, grid_dim), grid[:,1].reshape(grid_dim, grid_dim), posterior_grid.reshape(grid_dim, grid_dim))
+    ax.set_title('Mean model posterior. Iteration ' + str(iteration))
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    plt.savefig('./images/mean_model_posterior_' + str(iteration) + '.png')
+    plt.show()
+    plt.clf()
+    plt.close()
+    
+    fig,ax=plt.subplots(1,1)
+    cp = ax.contourf(grid[:,0].reshape(grid_dim, grid_dim), grid[:,1].reshape(grid_dim, grid_dim), acq_fun_grid.reshape(grid_dim, grid_dim))
+    fig.colorbar(cp) # Add a colorbar to a plot
+    ax.set_title('Acquisition function. Iteration ' + str(iteration))
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    plt.savefig('./images/acq_fun_' + str(iteration) + '.png')
+    plt.show()
+    plt.clf()
+    plt.close()
+
     import pdb; pdb.set_trace();
 
 
-def perform_BO_iteration(X, Y, name_obj_fun, bounds, normalize=False, wrapped=False, penalize=False, apply_simplex=False, plot_acq_model=True):
+def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, normalize=False, wrapped=False, penalize=False, apply_simplex=False, plot_acq_model=True):
 
     if not apply_simplex:
         gp = SingleTaskGP(X, Y)
@@ -256,7 +282,7 @@ def perform_BO_iteration(X, Y, name_obj_fun, bounds, normalize=False, wrapped=Fa
     UCB = UpperConfidenceBound(gp, beta=0.1, maximize=False)
     bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
     if plot_acq_model:
-        plot_acq_fun_model_posterior(UCB, X, gp, bounds, name_obj_fun)
+        plot_acq_fun_model_posterior(UCB, X, gp, bounds, name_obj_fun, seed+1)
     new_X, acq_value = optimize_acqf(
             UCB, bounds=bounds_cube, q=1, num_restarts=5, raw_samples=20,
     )
@@ -313,7 +339,7 @@ def perform_BO_experiment(seed : int, initial_design_size: int, budget: int, nam
     torch.random.manual_seed(seed)
     X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds)
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, seed)
 
     return Y
 
