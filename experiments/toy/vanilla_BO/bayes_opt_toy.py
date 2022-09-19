@@ -229,7 +229,8 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, bounds, fun_name, it
     ax.set_title('Objective function. Iteration ' + str(iteration))
     ax.set_xlabel('x')
     ax.set_ylabel('y')
-    plt.scatter(obs_input[:,0], obs_input[:,1], color="red", marker="X")
+    plt.scatter(obs_input[:,0], obs_input[:,1], color="black", marker="X")
+    plt.scatter(obs_input[len(obs_input)-1,0], obs_input[len(obs_input)-1,1], color="red", marker="X")
     plt.savefig('./images/obj_fun_' + str(iteration) + '.png')
     plt.show()
     plt.clf()
@@ -240,7 +241,8 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, bounds, fun_name, it
     ax.set_title('Mean model posterior. Iteration ' + str(iteration))
     ax.set_xlabel('x')
     ax.set_ylabel('y')
-    plt.scatter(obs_input[:,0], obs_input[:,1], color="red", marker="X")
+    plt.scatter(obs_input[:,0], obs_input[:,1], color="black", marker="X")
+    plt.scatter(obs_input[len(obs_input)-1,0], obs_input[len(obs_input)-1,1], color="red", marker="X")
     plt.savefig('./images/mean_model_posterior_' + str(iteration) + '.png')
     plt.show()
     plt.clf()
@@ -252,14 +254,12 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, bounds, fun_name, it
     ax.set_title('Acquisition function. Iteration ' + str(iteration))
     ax.set_xlabel('x')
     ax.set_ylabel('y')
-    plt.scatter(obs_input[:,0], obs_input[:,1], color="red", marker="X")
+    plt.scatter(obs_input[:,0], obs_input[:,1], color="black", marker="X")
+    plt.scatter(obs_input[len(obs_input)-1,0], obs_input[len(obs_input)-1,1], color="red", marker="X")
     plt.savefig('./images/acq_fun_' + str(iteration) + '.png')
     plt.show()
     plt.clf()
     plt.close()
-
-    import pdb; pdb.set_trace();
-
 
 def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, normalize=False, wrapped=False, penalize=False, apply_simplex=False, plot_acq_model=True):
 
@@ -282,7 +282,7 @@ def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, normalize=False, wrap
         fit_gpytorch_model(mll)
         gpytorch.settings.cholesky_jitter._global_float_value = 1e-06 #Restoring.
     
-    UCB = UpperConfidenceBound(gp, beta=0.1, maximize=False)
+    UCB = UpperConfidenceBound(gp, beta=0.2, maximize=False)
     bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
     if plot_acq_model:
         plot_acq_fun_model_posterior(UCB, X, gp, bounds, name_obj_fun, seed+1)
@@ -342,7 +342,7 @@ def perform_BO_experiment(seed : int, initial_design_size: int, budget: int, nam
     torch.random.manual_seed(seed)
     X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, seed)
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, i)
 
     return Y
 
@@ -362,7 +362,7 @@ if __name__ == '__main__' :
     #branin(torch.tensor([9.42478, 2.475]))
     total_exps = 1
     initial_design_size = 5
-    budget = 2
+    budget = 20
     n_methods = 5
     name_obj_fun = 'branin'
     bounds = torch.stack([torch.tensor([-5,0]), torch.tensor([10,15])])
