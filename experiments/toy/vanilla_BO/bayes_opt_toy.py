@@ -212,7 +212,7 @@ def meshgrid_to_2d_grid(X, Y):
         final_piece = torch.cat((final_piece,torch.vstack((X[i+1,0].repeat(len(X[0])),Y[0])).T))
     return final_piece
 
-def plot_acq_fun_model_posterior(acq_fun, obs_input, model, bounds, fun_name, iteration):
+def plot_acq_fun_model_posterior(acq_fun, obs_input, model, bounds, fun_name, iteration, method_name):
     grid_x = torch.linspace(0.0, 1.0, 100)
     grid_y = torch.linspace(0.0, 1.0, 100)
     X, Y = torch.meshgrid(grid_x, grid_y)
@@ -226,42 +226,42 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, bounds, fun_name, it
     grid_dim = len(grid_x)
     cp = ax.contourf(grid[:,0].reshape(grid_dim, grid_dim), grid[:,1].reshape(grid_dim, grid_dim), function_grid.reshape(grid_dim, grid_dim))
     fig.colorbar(cp) # Add a colorbar to a plot
-    ax.set_title('Objective function. Iteration ' + str(iteration))
+    ax.set_title('Objective function. Iteration ' + str(iteration) + '. ' + method_name)
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     plt.scatter(obs_input[:,0], obs_input[:,1], color="black", marker="X")
     plt.scatter(obs_input[len(obs_input)-1,0], obs_input[len(obs_input)-1,1], color="red", marker="X")
-    plt.savefig('./images/obj_fun_' + str(iteration) + '.png')
-    plt.show()
+    plt.savefig('./images/obj_fun_' + str(iteration) + '_' + method_name + '.png')
+    #plt.show()
     plt.clf()
     plt.close()
 
     fig,ax=plt.subplots(1,1)
     cp = ax.contourf(grid[:,0].reshape(grid_dim, grid_dim), grid[:,1].reshape(grid_dim, grid_dim), posterior_grid.reshape(grid_dim, grid_dim))
-    ax.set_title('Mean model posterior. Iteration ' + str(iteration))
+    ax.set_title('Mean model posterior. Iteration ' + str(iteration) + '. ' + method_name)
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     plt.scatter(obs_input[:,0], obs_input[:,1], color="black", marker="X")
     plt.scatter(obs_input[len(obs_input)-1,0], obs_input[len(obs_input)-1,1], color="red", marker="X")
-    plt.savefig('./images/mean_model_posterior_' + str(iteration) + '.png')
-    plt.show()
+    plt.savefig('./images/mean_model_posterior_' + str(iteration) + '_' + method_name + '.png')
+    #plt.show()
     plt.clf()
     plt.close()
     
     fig,ax=plt.subplots(1,1)
     cp = ax.contourf(grid[:,0].reshape(grid_dim, grid_dim), grid[:,1].reshape(grid_dim, grid_dim), acq_fun_grid.reshape(grid_dim, grid_dim))
     fig.colorbar(cp) # Add a colorbar to a plot
-    ax.set_title('Acquisition function. Iteration ' + str(iteration))
+    ax.set_title('Acquisition function. Iteration ' + str(iteration) + '. ' + method_name)
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     plt.scatter(obs_input[:,0], obs_input[:,1], color="black", marker="X")
     plt.scatter(obs_input[len(obs_input)-1,0], obs_input[len(obs_input)-1,1], color="red", marker="X")
-    plt.savefig('./images/acq_fun_' + str(iteration) + '.png')
-    plt.show()
+    plt.savefig('./images/acq_fun_' + str(iteration) + '_' + method_name + '.png')
+    #plt.show()
     plt.clf()
     plt.close()
 
-def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, normalize=False, wrapped=False, penalize=False, apply_simplex=False, plot_acq_model=True):
+def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, method_name, normalize=False, wrapped=False, penalize=False, apply_simplex=False, plot_acq_model=True):
 
     if not apply_simplex:
         gp = SingleTaskGP(X, Y)
@@ -282,10 +282,10 @@ def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, normalize=False, wrap
         fit_gpytorch_model(mll)
         gpytorch.settings.cholesky_jitter._global_float_value = 1e-06 #Restoring.
     
-    UCB = UpperConfidenceBound(gp, beta=0.2, maximize=False)
+    UCB = UpperConfidenceBound(gp, beta=0.5, maximize=False)
     bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
     if plot_acq_model:
-        plot_acq_fun_model_posterior(UCB, X, gp, bounds, name_obj_fun, seed+1)
+        plot_acq_fun_model_posterior(UCB, X, gp, bounds, name_obj_fun, seed+1, method_name)
     new_X, acq_value = optimize_acqf(
             UCB, bounds=bounds_cube, q=1, num_restarts=5, raw_samples=20,
     )
@@ -312,7 +312,7 @@ def perform_wrapper_rounding_experiment(seed : int, initial_design_size: int, bu
     X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
 
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, wrapped=True)
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, i, "Wrapper rounding", wrapped=True)
 
     return Y
 
@@ -322,7 +322,7 @@ def perform_wrapper_penalizing_experiment(seed : int, initial_design_size: int, 
     X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
 
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, penalize=True)
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, i, "Wrapper penalizing", penalize=True)
 
     return Y
 
@@ -333,7 +333,7 @@ def perform_simplex_transformation_experiment(seed : int, initial_design_size: i
     X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
 
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, apply_simplex=True)
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, i, "Simplex transformation", apply_simplex=True)
 
     return Y
 
@@ -342,7 +342,7 @@ def perform_BO_experiment(seed : int, initial_design_size: int, budget: int, nam
     torch.random.manual_seed(seed)
     X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, i)
+        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, i, "Vanilla BO")
 
     return Y
 
@@ -362,7 +362,7 @@ if __name__ == '__main__' :
     #branin(torch.tensor([9.42478, 2.475]))
     total_exps = 1
     initial_design_size = 5
-    budget = 20
+    budget = 10
     n_methods = 5
     name_obj_fun = 'branin'
     bounds = torch.stack([torch.tensor([-5,0]), torch.tensor([10,15])])
