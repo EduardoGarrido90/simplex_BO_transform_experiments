@@ -12,11 +12,18 @@ import numpy as np
 import random
 from scipy.special import softmax
 
+#1. Design Daniel transformation.
+#2. Averiguar por qué el simplex lo hace al revés y porque no está funcionando la optimización, es MUY raro.
+# OK 2.1. Asegurarse de que se está imprimiendo bien. Contrastar que el grid y valor por valor te da lo mismo para it = 10 en adelante.
+#2.2. PARECE QUE SI Averiguar si el modelo está aplicando la transformación de entrada cuando hace la media. Probar con y sin transformación.
+# HECHO, PERO PARECE INMUNE 2.3. Exagerar valores para disperar 0.5 0.05 a 0.1 y 0.01 a ver que pasa. 
+#2.4. Ver si la idea de la transformacion funciona, ver un punto que colisione con otro del simplex y comprobar que ambos puntos valen lo mismo de acorde al posterior. 
+#3. Debuggeo grande a los valores. 
 
-#The transformation seems to fail with the acquisition function.
-#Design a very simple problem with 2 dimensions to see how the acquisition function behaves there with a plot.
-#Include the value of the real function.
-#Design Daniel transformation.
+#No es que se penalizen soluciones que no valen. Es que la función por dentro hace el método del simplex con carteras incorrectas. Luego si ya le
+#metes esa información al modelo, entonces va a hacerlo mejor.  Aunque es raro, tecnicamente no hay pendiente, es o 0, o valor. Hacer una funcion del 
+#estilo ya que debe ser cartera valida o pdf valida. Hacer el planteamiento de la transformacion por si el programa te lo traspasa automatico, en ese caso si vale. 
+#Igual esto se puede resolver con un prior en vez de con una transformación?
 
 GLOBAL_MAXIMUM = 1000
 
@@ -44,7 +51,7 @@ def simplex_penalization(x, bounds):
     x = x * max_bounds
     sum_values = torch.sum(x)
     distance_wrt_simplex = torch.abs(max_bounds-sum_values)
-    penalization = 10 * distance_wrt_simplex
+    penalization = 10000 * distance_wrt_simplex
     return penalization
 
 def branin_function(x, bounds): #To minimize, tested OK.
@@ -191,7 +198,7 @@ def plot_results(n_iters, results):
         X_plot, results[3].mean(axis=1), yerr=0.1 * ci(results[3], results.shape[2]), label="Penalized objective function", linewidth=1.5, capsize=3, alpha=0.6,
     )
     ax.errorbar(
-        X_plot, results[3].mean(axis=1), yerr=0.1 * ci(results[4], results.shape[2]), label="Simplex transformation", linewidth=1.5, capsize=3, alpha=0.6,
+        X_plot, results[4].mean(axis=1), yerr=0.1 * ci(results[4], results.shape[2]), label="Simplex transformation", linewidth=1.5, capsize=3, alpha=0.6,
     )
     #ax.set(xlabel='number of observations (beyond initial points)', ylabel='Log10 Regret')
     ax.set(xlabel='Number of observations', ylabel='Objective function')
@@ -267,7 +274,6 @@ def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, method_name, normaliz
         gp = SingleTaskGP(X, Y)
     else:
         #normalize = Normalize(d=X.shape[1], bounds=bounds)
-        import pdb; pdb.set_trace();
         simplex = Simplex(indices=list(range(X.shape[-1]))) #Print acq. fun.
         #tf = ChainedInputTransform(tf1=normalize, tf2=simplex)
         #gp = SingleTaskGP(X, Y, input_transform=tf)
@@ -282,7 +288,7 @@ def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, method_name, normaliz
         fit_gpytorch_model(mll)
         gpytorch.settings.cholesky_jitter._global_float_value = 1e-06 #Restoring.
     
-    UCB = UpperConfidenceBound(gp, beta=0.5, maximize=False)
+    UCB = UpperConfidenceBound(gp, beta=0.1, maximize=False)
     bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
     if plot_acq_model:
         plot_acq_fun_model_posterior(UCB, X, gp, bounds, name_obj_fun, seed+1, method_name)
