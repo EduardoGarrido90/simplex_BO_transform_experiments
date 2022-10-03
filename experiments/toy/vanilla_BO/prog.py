@@ -1,20 +1,22 @@
 import math
 import numpy as np
 from synthetic_problem import  Synthetic_problem
+import sys
 
 problem = None
-NUM_EXP = 1
 
-def main(job_id, params):
+def main(seed, params):
 
     global problem
 
     if problem is None:
-        problem = Synthetic_problem(NUM_EXP)
+        problem = Synthetic_problem(seed)
 
-    import pdb; pdb.set_trace();
     problem.plot()
     return problem.f_noisy(params)
 
 if __name__ == '__main__':
-    main(1,{'X':0.1, 'Y':0.2}) 
+    seed = int(sys.argv[1])
+    x = float(sys.argv[2])
+    y = float(sys.argv[3])
+    main(seed, {'X': x, 'Y': y}) 
