@@ -13,10 +13,14 @@ def main(seed, params):
         problem = Synthetic_problem(seed)
 
     problem.plot()
-    return problem.f_noisy(params)
+    result = problem.f_noisy(params)
+    return str(result['o1'])
+
+def wrapper(seed, x, y):
+    return main(seed, {'X': x, 'Y': y}) 
 
 if __name__ == '__main__':
     seed = int(sys.argv[1])
     x = float(sys.argv[2])
     y = float(sys.argv[3])
-    main(seed, {'X': x, 'Y': y}) 
+    wrapper(seed, x, y)
