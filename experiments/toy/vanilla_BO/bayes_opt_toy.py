@@ -10,6 +10,7 @@ from gpytorch.mlls import ExactMarginalLogLikelihood
 import matplotlib.pyplot as plt
 import numpy as np
 import random
+import execnet
 from scipy.special import softmax
 
 #1. Design Daniel transformation.
@@ -26,6 +27,15 @@ from scipy.special import softmax
 #Igual esto se puede resolver con un prior en vez de con una transformación?
 
 GLOBAL_MAXIMUM = 1000
+
+def call_python_version(Version, Module, Function, ArgumentList):
+    gw      = execnet.makegateway("popen//python=python%s" % Version)
+    channel = gw.remote_exec("""
+        from %s import %s as the_function
+        channel.send(the_function(*channel.receive()))
+    """ % (Module, Function))
+    channel.send(ArgumentList)
+    return channel.receive()
 
 def normalize_points(X, bounds):
     Y= X.clone()
@@ -96,12 +106,17 @@ def sphere_obj_function_old(x, bounds): #Length of x: 5. Range [0,1]^5. To be ma
     penalization = 20.0 * distance_wrt_simplex**x.shape[0] 
     return y - penalization
 
+def wrapper_gp_sample(x, seed):
+    import pdb; pdb.set_trace();
+    return torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
 
-def obj_fun(x, name, bounds):
+def obj_fun(x, name, bounds, seed):
     if name == 'sphere':
         y = sphere_obj_function(x, bounds)
-    else:
+    elif name == 'branin':
         y = penalized_branin(x, bounds)
+    else:
+        y = wrapper_gp_sample(x, seed)
     return y
 
 def wrapped_obj_fun(X_train, name_obj_fun, bounds):
@@ -206,11 +221,11 @@ def plot_results(n_iters, results):
     plt.title('Bayesian optimization results of the different methods')
     plt.show()
 
-def get_initial_results(initial_design_size, name_obj_fun, bounds):
+def get_initial_results(initial_design_size, name_obj_fun, bounds, seed):
     X = []
     n_dims = bounds.shape[1]
     X = torch.rand(initial_design_size, n_dims)
-    Y = torch.tensor([obj_fun(x, name_obj_fun, bounds) for x in X]).reshape(X.shape[0], 1)
+    Y = torch.tensor([obj_fun(x, name_obj_fun, bounds, seed) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
 def meshgrid_to_2d_grid(X, Y):
@@ -346,7 +361,7 @@ def perform_simplex_transformation_experiment(seed : int, initial_design_size: i
 def perform_BO_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str, bounds) -> torch.Tensor:
     random.seed(seed)
     torch.random.manual_seed(seed)
-    X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
+    X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds, seed)
     for i in range(budget):
         X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, i, "Vanilla BO")
 
@@ -370,8 +385,8 @@ if __name__ == '__main__' :
     initial_design_size = 5
     budget = 10
     n_methods = 5
-    name_obj_fun = 'branin'
-    bounds = torch.stack([torch.tensor([-5,0]), torch.tensor([10,15])])
+    name_obj_fun = 'GP-synthetic'
+    bounds = torch.stack([torch.tensor([0,1]), torch.tensor([0,1])])
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
     for exp in range(total_exps):

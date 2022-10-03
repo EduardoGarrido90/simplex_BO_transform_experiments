@@ -15,6 +15,6 @@ if __name__ == '__main__':
     seed = int(sys.argv[1])
     x = float(sys.argv[2])
     y = float(sys.argv[3])
-    result = call_python_version("2.7", "prog", "wrapper", [seed, x, y])
+    result = float(call_python_version("2.7", "prog", "wrapper", [seed, x, y]))
     print('resultado de vuelta')
-    print(float(result))
+    print(result)

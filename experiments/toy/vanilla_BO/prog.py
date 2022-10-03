@@ -12,7 +12,7 @@ def main(seed, params):
     if problem is None:
         problem = Synthetic_problem(seed)
 
-    problem.plot()
+    #problem.plot()
     result = problem.f_noisy(params)
     return str(result['o1'])
 
