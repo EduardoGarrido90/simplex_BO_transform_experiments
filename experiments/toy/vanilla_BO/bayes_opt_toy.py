@@ -225,6 +225,7 @@ def get_initial_results(initial_design_size, name_obj_fun, bounds, seed):
     X = []
     n_dims = bounds.shape[1]
     X = torch.rand(initial_design_size, n_dims)
+    import pdb; pdb.set_trace();
     Y = torch.tensor([obj_fun(x, name_obj_fun, bounds, seed) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
@@ -392,8 +393,8 @@ if __name__ == '__main__' :
     #Tests.
     #normalize_points(torch.tensor([3,-1]), torch.tensor([[-4.5,-4.5],[4.5,4.5]]))
     #branin(torch.tensor([9.42478, 2.475]))
-    x_simplex = biyective_transformation(torch.tensor([0.3,0.9]))
     import pdb; pdb.set_trace();
+    x_simplex = biyective_transformation(torch.tensor([0.3,0.9]))
     x = inverse_biyective_transformation(x_simplex)
     total_exps = 1
     initial_design_size = 5
