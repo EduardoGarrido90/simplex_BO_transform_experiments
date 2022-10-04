@@ -1,0 +1,59 @@
+[0,1]^3
+
+c(0.1, 0.5, 0.4) -> f(c(0.1, 0.5, 0.4))
+
+Transformación en el Wrapper: -> Hay varios puntos de [0,1]^3 que dan los mismos valores de la funcion objetivo.
+
+
+f(c(0.33, 0.33, 0.33)) -> valor
+
+c(0.33, 0.33, 0.33) -> se obtiene de varias maneras de [0,1]^3
+
+Transformación en el Wrapper: softmax
+
+Espacio [0,1]^3 -> softmax -> Simplex en 3 dimensiones
+
+Hay varios puntos en [0.1]^3 que dan el mismo resultado de función objetivo.
+
+c(1,1,1) -> c(0.33, 0.33, 0.33)
+c(2,2,2) -> c(0.33, 0.33, 0.33)
+
+El modelo sería malo porque no tendría esto en cuenta. Tampoco tendría en cuenta que en [0.1]^3 tienes 
+3 dimensiones y en el simplex solo tienes 2.
+
+Si usas la transformación alternativa a softmax. 
+
+[0,1]^2 -> simplex en tres dimensiones. Y aquí la transformación sería biyectiva.
+
+Los GPs modelan en el espacio [0,1]^2. 
+
+Optimizo en la caja [0,1]^2 -> paso al simplex en 3 dimensiones. 
+La función de adquisición estaría en [0,1]^2. 
+
+Utilizar la transformación inversa que va del simplex en 3 dimensiones a R^2. Definir el GP en R^2. Vale para generar problemas sintéticos.
+
+Incluso se puede mejorar un poco la transformación que propones. En particular, si usas la función soft-max tendrías tantas dimensiones como entradas en el vector de probabilidades. Eso no es necesario y hay varios valores que dan el mismo resultado. Por ejemplo,
+
+Un vector (2,2,2) da (0.33, 0.33, 0.33) como probabilidades, lo mismo que (3,3,3), es decir (0.33, 0.33, 0.33).
+
+Eso va hacer más difícil el proceso de optimización, pues los GPs no van a capturar esas regularidades de forma sencilla.  
+
+Sería mejor usar una transformación biyecttiva. 
+
+Para ello, puedes utilizar una transformación que considere D - 1 dimensiones, con D el nº de probabilidades.
+
+Por ejemplo, si p es el vector de probabilidades de dimensión D y x el vector en la recta real en D - 1 dimensiones:
+
+p_i = exp(x_i) / (1 + sum_j=1^D-1 exp(x_j)) para i = 1,...,D-1
+
+p_D = 1 - sum_i=1^{D-1} p_i
+
+por otro lado, el inverso de la transformación es (lo que garantiza la biyectividad):
+
+x_i = log (p_i / (1 - sum_j=1^D-1 p_j)) para i = 1,..,D-1
+
+la derivada de p_i respecto de x_j es - p_i * p_j si i != j y p_i * (1 - p_i) si i = j, con i != D. Si i = D, entonces la derivada es - la suma de derivadas de p_i respecto de x_j. 
+
+Sería interesante ver si considerar D - 1 dimensiones en vez de D mejora los resultados de optimización. Debería hacerlo.
+
+Por otro lado está el problema de que spearmint (y también botorch si lo configuras así) ajustan los GPs en la caja [0,1]. Habría que pasar de la caja [0,1] a la recta real. Esto creo que ya te lo comenté en otro correo, y se puede hacer restando 0.5 a cada componente y dividiendo por un valor pequeño, como 1e-2. 

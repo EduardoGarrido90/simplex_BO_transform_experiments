@@ -377,10 +377,24 @@ def perform_random_experiment(seed, initial_design_size, budget, name_obj_fun, b
 
     return Y
 
+def biyective_transformation(x):
+    simplex_representation = torch.zeros(x.shape[0]+1)
+    p = torch.exp(x) / (1.0 + torch.sum(np.exp(x)))
+    p_extra = 1.0 - torch.sum(p)
+    simplex_representation[0:simplex_representation.shape[0]-1] = p
+    simplex_representation[simplex_representation.shape[0]-1] = p_extra
+    return simplex_representation
+
+def inverse_biyective_transformation(x_simplex):
+    return torch.log(x_simplex/(1-torch.sum(x_simplex)+x_simplex[x_simplex.shape[0]-1]))[0:x_simplex.shape[0]-1]
+
 if __name__ == '__main__' :
     #Tests.
     #normalize_points(torch.tensor([3,-1]), torch.tensor([[-4.5,-4.5],[4.5,4.5]]))
     #branin(torch.tensor([9.42478, 2.475]))
+    x_simplex = biyective_transformation(torch.tensor([0.3,0.9]))
+    import pdb; pdb.set_trace();
+    x = inverse_biyective_transformation(x_simplex)
     total_exps = 1
     initial_design_size = 5
     budget = 10
