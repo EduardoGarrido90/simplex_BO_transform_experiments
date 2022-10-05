@@ -129,7 +129,7 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1]))).detach()
     posterior_grid = model.posterior(grid).mean[:,0].detach()
     #function_grid = torch.sum(grid**2.0, axis=1)
-    function_grid = torch.tensor([obj_fun(x, name_obj_fun, bounds) for x in grid])
+    function_grid = torch.tensor([objective_function(x, name_obj_fun, bounds) for x in grid])
     
     fig,ax=plt.subplots(1,1)
     grid_dim = len(grid_x)
@@ -170,16 +170,9 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     plt.clf()
     plt.close()
 
-def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, method_name, normalize=False, wrapped=False, penalize=False, apply_simplex=False, plot_acq_model=True):
+def perform_BO_iteration(X, Y, seed, method_name, normalize=False, wrapped=False, penalize=False, apply_simplex=False, plot_acq_model=False):
 
-    if not apply_simplex:
-        gp = SingleTaskGP(X, Y)
-    else:
-        #normalize = Normalize(d=X.shape[1], bounds=bounds)
-        simplex = Simplex(indices=list(range(X.shape[-1]))) #Print acq. fun.
-        #tf = ChainedInputTransform(tf1=normalize, tf2=simplex)
-        #gp = SingleTaskGP(X, Y, input_transform=tf)
-        gp = SingleTaskGP(X, Y, input_transform=simplex)
+    gp = SingleTaskGP(X, Y)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
     
     try:
@@ -190,7 +183,7 @@ def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, method_name, normaliz
         fit_gpytorch_model(mll)
         gpytorch.settings.cholesky_jitter._global_float_value = 1e-06 #Restoring.
     
-    UCB = UpperConfidenceBound(gp, beta=0.1, maximize=False)
+    UCB = UpperConfidenceBound(gp, beta=0.3, maximize=False)
     bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
     if plot_acq_model:
         plot_acq_fun_model_posterior(UCB, X, gp, bounds, name_obj_fun, seed+1, method_name)
@@ -202,7 +195,7 @@ def perform_BO_iteration(X, Y, name_obj_fun, bounds, seed, method_name, normaliz
     elif penalize:
         new_y = penalize_obj_fun(new_X, name_obj_fun, bounds)
     else:
-        new_y = obj_fun(new_X, name_obj_fun, bounds)
+        new_y = objective_function(new_X[0], seed)
     X = torch.cat((X, new_X),0)
     Y = torch.cat((Y, new_y.reshape(1,1)),0)
     return X, Y
@@ -275,13 +268,26 @@ def biyective_transformation(x):
 def inverse_biyective_transformation(x_simplex):
     return torch.log(x_simplex/(1-torch.sum(x_simplex)+x_simplex[x_simplex.shape[0]-1]))[0:x_simplex.shape[0]-1]
 
-def perform_biyective_transformation_experiment(seed, initial_design_size, budget) -> torch.Tensor:
+def perform_simplex_transformation_experiment(seed, initial_design_size, budget) -> torch.Tensor:
+    print('Initiating simplex transformation experiment')
     random.seed(seed)
     torch.random.manual_seed(seed)
     X, Y = get_initial_results(initial_design_size, seed)
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, i, "Vanilla BO")
+        X, Y = perform_BO_iteration(X, Y, seed, "Biyective transformation")
+        print("Iteration: " + str(i+1))
+    print('Ending simplex transformation experiment')
+    return Y
 
+def perform_biyective_transformation_experiment(seed, initial_design_size, budget) -> torch.Tensor:
+    print('Initiating biyective transformation experiment')
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, seed)
+    for i in range(budget):
+        X, Y = perform_BO_iteration(X, Y, seed, "Biyective transformation")
+        print("Iteration: " + str(i+1))
+    print('Ending biyective transformation experiment')
     return Y
 
 if __name__ == '__main__' :
