@@ -13,7 +13,7 @@ def main(seed, params):
         problem = Synthetic_problem(seed)
 
     #problem.plot()
-    result = problem.f_noisy(params)
+    result = problem.f(params)
     return str(result['o1'])
 
 def wrapper(seed, x, y):

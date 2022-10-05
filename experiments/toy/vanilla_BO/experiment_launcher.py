@@ -28,7 +28,10 @@ def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
 
 def objective_function(x, seed):
-    return torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
+    print("Evaluating objective function X=", str(x))
+    y = torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
+    print("Objective function evaluated. Y=", str(y))
+    return y
 
 def simplex_transformation(x):
     transformed_inputs = (X_train - 0.5) / 0.05
@@ -108,10 +111,8 @@ def plot_results_log10_regret_acum(n_iters, results):
     plt.show()
 
 def get_initial_results(initial_design_size, seed):
-    X = []
-    n_dims = bounds.shape[1]
-    X = torch.rand(initial_design_size, n_dims)
-    Y = torch.tensor([obj_fun(x, name_obj_fun, bounds, seed) for x in X]).reshape(X.shape[0], 1)
+    X = torch.rand(initial_design_size, 2)
+    Y = torch.tensor([objective_function(x, seed) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
 def meshgrid_to_2d_grid(X, Y):
@@ -274,6 +275,15 @@ def biyective_transformation(x):
 def inverse_biyective_transformation(x_simplex):
     return torch.log(x_simplex/(1-torch.sum(x_simplex)+x_simplex[x_simplex.shape[0]-1]))[0:x_simplex.shape[0]-1]
 
+def perform_biyective_transformation_experiment(seed, initial_design_size, budget) -> torch.Tensor:
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, seed)
+    for i in range(budget):
+        X, Y = perform_BO_iteration(X, Y, i, "Vanilla BO")
+
+    return Y
+
 if __name__ == '__main__' :
     #Tests.
     #normalize_points(torch.tensor([3,-1]), torch.tensor([[-4.5,-4.5],[4.5,4.5]]))
@@ -288,11 +298,11 @@ if __name__ == '__main__' :
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
     for exp in range(total_exps):
-        results[0, :, exp] = perform_biyective_transformation_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
-        results[1, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
-        results[2, :, exp] = perform_penalizing_approach_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
-        results[3, :, exp] = perform_RS_BT_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
-        results[4, :, exp] = perform_RS_ST_experiment(exp, initial_design_size, budget, name_obj_fun, bounds).reshape((total_its))
+        results[0, :, exp] = perform_biyective_transformation_experiment(exp, initial_design_size, budget).reshape((total_its))
+        results[1, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget).reshape((total_its))
+        results[2, :, exp] = perform_penalizing_approach_experiment(exp, initial_design_size, budget).reshape((total_its))
+        results[3, :, exp] = perform_RS_BT_experiment(exp, initial_design_size, budget).reshape((total_its))
+        results[4, :, exp] = perform_RS_ST_experiment(exp, initial_design_size, budget).reshape((total_its))
         print(exp)
     #plot_results_log10_regret_acum(initial_design_size+budget, results)
     plot_results(initial_design_size+budget, results)
