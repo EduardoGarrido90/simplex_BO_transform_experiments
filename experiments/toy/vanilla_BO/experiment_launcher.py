@@ -13,6 +13,17 @@ import random
 import execnet
 from scipy.special import softmax
 
+#TAREAS DEL SIMPLEX:
+#0.a: Hacer el random 2D.
+#0.b: Hacer el random 3D.
+#1. Visualización del simplex.
+#2. Extraccion del peor punto del simplex.
+#3. Para penalizacion:
+#3.1 Hallar si el punto pertenece al simplex, sino, coger el peor punto y penalizar linealmente por distancia de la proyeccion de forma suave.
+#3.2 Si pertenece, entonces hacer la transformación inversa y ya esta.
+#4 Hacer una visualizacion exhaustiva de la funcion objetivo en 2D y de su representacion en el simplex para enseñar a Daniel que [0,1]^2 -> No es exhaustivo el simplex. Esto se arregla con -0.5/0.05.
+#5 Arreglar con -0.5/0.05 que sería una escala de [0,1]^2 a R^2, luego de R^2 a S^3 tienes el simplex de ese punto. 
+#6 Comparar todos los baselines. 
 GLOBAL_MAXIMUM = 1000
 
 def call_python_version(Version, Module, Function, ArgumentList):
@@ -27,12 +38,14 @@ def call_python_version(Version, Module, Function, ArgumentList):
 def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
 
-def objective_function(x, seed, to_simplex=False):
+def objective_function(x, seed, to_simplex=False, penalize=False):
     if(to_simplex):
-        import pdb; pdb.set_trace();
         x = inverse_biyective_transformation(simplex_transformation(x))
     print("Evaluating objective function X=", str(x))
     y = torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
+    if(penalize):
+        import pdb; pdb.set_trace();
+        y = penalization_approach(x, y)
     print("Objective function evaluated. Y=", str(y))
     return y
 
@@ -40,11 +53,10 @@ def simplex_transformation(x):
     transformed_inputs = (x - 0.5) / 0.05
     return torch.exp(transformed_inputs)/torch.sum(torch.exp(transformed_inputs)) #Sums to 1: ps assert(torch.sum(X_train)==1.0)
 
-def penalization_approach(x):
-    y = obj_fun(X_train, name_obj_fun, bounds)
-    sum_values = torch.sum(X_train)
-    penalization = torch.abs(torch.tensor(1.0)-sum_values)
-    return y-penalization
+def penalization_approach(x, y):
+    sum_values = torch.sum(x)
+    penalization = torch.abs(torch.tensor(1.0)-sum_values)*10
+    return y+penalization
 
 def plot_results_log10_regret(n_iters, results):
     X_plot = np.linspace(1, n_iters, n_iters)
@@ -112,9 +124,9 @@ def plot_results_log10_regret_acum(n_iters, results):
     plt.title('Bayesian optimization results of the different methods')
     plt.show()
 
-def get_initial_results(initial_design_size, seed, dims, simplex_transformation=False):
+def get_initial_results(initial_design_size, seed, dims, simplex_transformation=False, penalizing_approach=False):
     X = torch.rand(initial_design_size, dims)
-    Y = torch.tensor([objective_function(x, seed, to_simplex=simplex_transformation) for x in X]).reshape(X.shape[0], 1)
+    Y = torch.tensor([objective_function(x, seed, to_simplex=simplex_transformation, penalize=penalizing_approach) for x in X]).reshape(X.shape[0], 1)
     return X, Y
 
 def meshgrid_to_2d_grid(X, Y):
@@ -172,7 +184,7 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     plt.clf()
     plt.close()
 
-def perform_BO_iteration(X, Y, seed, method_name, apply_simplex=False, plot_acq_model=False):
+def perform_BO_iteration(X, Y, seed, method_name, apply_simplex=False, apply_penalization=False, plot_acq_model=False):
 
     gp = SingleTaskGP(X, Y)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
@@ -194,6 +206,8 @@ def perform_BO_iteration(X, Y, seed, method_name, apply_simplex=False, plot_acq_
     )
     if apply_simplex:
         new_y = objective_function(new_X[0], seed, to_simplex=True)
+    elif apply_penalization:
+        new_y = objective_function(new_X[0], seed, penalize=True)
     else:
         new_y = objective_function(new_X[0], seed)
     X = torch.cat((X, new_X),0)
@@ -206,27 +220,6 @@ def perform_random_iteration(X, Y, name_obj_fun, bounds):
     X = torch.cat((X, new_X),0)
     Y = torch.cat((Y, new_y.reshape(1,1)),0)
     return X, Y
-
-def perform_wrapper_rounding_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str, bounds) -> torch.Tensor:
-    random.seed(seed)
-    torch.random.manual_seed(seed)
-    X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
-
-    for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, i, "Wrapper rounding", wrapped=True)
-
-    return Y
-
-def perform_wrapper_penalizing_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str, bounds) -> torch.Tensor:
-    random.seed(seed)
-    torch.random.manual_seed(seed)
-    X, Y = get_initial_results(initial_design_size, name_obj_fun, bounds)
-
-    for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, name_obj_fun, bounds, i, "Wrapper penalizing", penalize=True)
-
-    return Y
-
 
 def perform_simplex_transformation_experiment(seed : int, initial_design_size: int, budget: int, name_obj_fun : str, bounds) -> torch.Tensor:
     random.seed(seed)
@@ -268,6 +261,17 @@ def biyective_transformation(x):
 def inverse_biyective_transformation(x_simplex):
     return torch.log(x_simplex/(1-torch.sum(x_simplex)+x_simplex[x_simplex.shape[0]-1]))[0:x_simplex.shape[0]-1]
 
+def perform_penalizing_approach_experiment(seed, initial_design_size, budget, dims_simplex) -> torch.Tensor:
+    print('Initiating simplex transformation experiment')
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, seed, dims_simplex, penalizing_approach=True)
+    for i in range(budget):
+        X, Y = perform_BO_iteration(X, Y, seed, "Penalizing approach", apply_penalization=True)
+        print("Iteration: " + str(i+1))
+    print('Ending simplex transformation experiment')
+    return Y
+
 def perform_simplex_transformation_experiment(seed, initial_design_size, budget, dims_simplex) -> torch.Tensor:
     print('Initiating simplex transformation experiment')
     random.seed(seed)
@@ -304,11 +308,11 @@ if __name__ == '__main__' :
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
     for exp in range(total_exps):
-        results[1, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[2, :, exp] = perform_penalizing_approach_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[3, :, exp] = perform_RS_BT_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[4, :, exp] = perform_RS_ST_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[0, :, exp] = perform_biyective_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
+        results[1, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         print(exp)
     #plot_results_log10_regret_acum(initial_design_size+budget, results)
     plot_results(initial_design_size+budget, results)
