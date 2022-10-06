@@ -14,8 +14,8 @@ import execnet
 from scipy.special import softmax
 
 #TAREAS DEL SIMPLEX:
-#0.a: Hacer el random 2D.
-#0.b: Hacer el random 3D.
+#DONE 0.a: Hacer el random 2D.
+#DONE 0.b: Hacer el random 3D.
 #1. Visualización del simplex.
 #2. Extraccion del peor punto del simplex.
 #3. Para penalizacion:
@@ -44,7 +44,6 @@ def objective_function(x, seed, to_simplex=False, penalize=False):
     print("Evaluating objective function X=", str(x))
     y = torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
     if(penalize):
-        import pdb; pdb.set_trace();
         y = penalization_approach(x, y)
     print("Objective function evaluated. Y=", str(y))
     return y
@@ -214,9 +213,12 @@ def perform_BO_iteration(X, Y, seed, method_name, apply_simplex=False, apply_pen
     Y = torch.cat((Y, new_y.reshape(1,1)),0)
     return X, Y
 
-def perform_random_iteration(X, Y, name_obj_fun, bounds):
+def perform_random_iteration(X, Y, seed, method_name, apply_simplex=False):
     new_X = torch.rand(1, X.shape[1])
-    new_y = obj_fun(new_X, name_obj_fun, bounds)
+    if apply_simplex:
+        new_y = objective_function(new_X[0], seed, to_simplex=True)
+    else:
+        new_y = objective_function(new_X[0], seed)
     X = torch.cat((X, new_X),0)
     Y = torch.cat((Y, new_y.reshape(1,1)),0)
     return X, Y
@@ -294,6 +296,28 @@ def perform_biyective_transformation_experiment(seed, initial_design_size, budge
     print('Ending biyective transformation experiment')
     return Y
 
+def perform_RS_BT_experiment(seed, initial_design_size, budget, dims_simplex) -> torch.Tensor:
+    print('Initiating Random search BT experiment')
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, seed, dims_simplex-1)
+    for i in range(budget):
+        X, Y = perform_random_iteration(X, Y, seed, "RS-BT")
+        print("Iteration: " + str(i+1))
+    print('Ending Random search BT experiment')
+    return Y
+
+def perform_RS_ST_experiment(seed, initial_design_size, budget, dims_simplex) -> torch.Tensor:
+    print('Initiating Random search ST experiment')
+    random.seed(seed)
+    torch.random.manual_seed(seed)
+    X, Y = get_initial_results(initial_design_size, seed, dims_simplex, simplex_transformation=True)
+    for i in range(budget):
+        X, Y = perform_random_iteration(X, Y, seed, "RS-ST", apply_simplex=True)
+        print("Iteration: " + str(i+1))
+    print('Ending Random search ST experiment')
+    return Y
+
 if __name__ == '__main__' :
     #Tests.
     #normalize_points(torch.tensor([3,-1]), torch.tensor([[-4.5,-4.5],[4.5,4.5]]))
@@ -308,11 +332,11 @@ if __name__ == '__main__' :
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
     for exp in range(total_exps):
+        results[0, :, exp] = perform_biyective_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
+        results[1, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[2, :, exp] = perform_penalizing_approach_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[3, :, exp] = perform_RS_BT_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[4, :, exp] = perform_RS_ST_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
-        results[0, :, exp] = perform_biyective_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
-        results[1, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         print(exp)
     #plot_results_log10_regret_acum(initial_design_size+budget, results)
     plot_results(initial_design_size+budget, results)
