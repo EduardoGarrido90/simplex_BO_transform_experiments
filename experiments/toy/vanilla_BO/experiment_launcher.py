@@ -322,8 +322,8 @@ if __name__ == '__main__' :
     #Tests.
     #normalize_points(torch.tensor([3,-1]), torch.tensor([[-4.5,-4.5],[4.5,4.5]]))
     #branin(torch.tensor([9.42478, 2.475]))
-    x_simplex = biyective_transformation(torch.tensor([0.3,0.9]))
-    x = inverse_biyective_transformation(x_simplex)
+    #x_simplex = biyective_transformation(torch.tensor([0.3,0.9]))
+    #x = inverse_biyective_transformation(x_simplex)
     dims_simplex = 3
     total_exps = 10
     initial_design_size = 5
