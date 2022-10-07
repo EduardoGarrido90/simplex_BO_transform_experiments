@@ -27,6 +27,14 @@ def plot_objective_function(seed, l_bound, h_bound):
 def wrapper(seed, x, y):
     return main(seed, {'X': x, 'Y': y}) 
 
+def initiate(seed):
+    global problem
+
+    if problem is None:
+        problem = Synthetic_problem(seed)
+
+    problem.sleep_until_call()
+
 if __name__ == '__main__':
     seed = int(sys.argv[1])
     x = float(sys.argv[2])

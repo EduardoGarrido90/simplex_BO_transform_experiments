@@ -352,6 +352,9 @@ def perform_RS_ST_experiment(seed, initial_design_size, budget, dims_simplex) ->
     print('Ending Random search ST experiment')
     return Y
 
+def generate_synthetic_problem(seed):
+    call_python_version("2.7", "prog", "initiate", [seed])
+
 if __name__ == '__main__' :
     #Tests.
     #normalize_points(torch.tensor([3,-1]), torch.tensor([[-4.5,-4.5],[4.5,4.5]]))
@@ -366,6 +369,7 @@ if __name__ == '__main__' :
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
     for exp in range(total_exps):
+        generate_synthetic_problem(exp)
         results[0, :, exp] = perform_biyective_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[1, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[2, :, exp] = perform_penalizing_approach_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
