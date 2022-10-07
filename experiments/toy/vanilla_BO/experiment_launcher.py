@@ -12,11 +12,13 @@ import numpy as np
 import random
 import execnet
 from scipy.special import softmax
+import math
+import matplotlib.tri as tri
 
 #TAREAS DEL SIMPLEX:
 #DONE 0.a: Hacer el random 2D.
 #DONE 0.b: Hacer el random 3D.
-#1. Visualización del simplex.
+#1. Visualización del simplex. (Cachear la funcion objetivo, sino es impracticable dibujar el simplex)
 #2. Extraccion del peor punto del simplex.
 #3. Para penalizacion:
 #3.1 Hallar si el punto pertenece al simplex, sino, coger el peor punto y penalizar linealmente por distancia de la proyeccion de forma suave.
@@ -25,6 +27,30 @@ from scipy.special import softmax
 #5 Arreglar con -0.5/0.05 que sería una escala de [0,1]^2 a R^2, luego de R^2 a S^3 tienes el simplex de ese punto. 
 #6 Comparar todos los baselines. 
 GLOBAL_MAXIMUM = 1000
+
+def xy2bc(xy, tol=1.e-4):
+    '''Converts 2D Cartesian coordinates to barycentric.'''
+    coords = np.array([tri_area(xy, p) for p in pairs]) / AREA
+    return np.clip(coords, tol, 1.0 - tol)
+
+def plot_simplex(seed):
+    corners = np.array([[0, 0], [1, 0], [0.5, 0.75**0.5]])
+    AREA = 0.5 * 1 * 0.75**0.5
+    triangle = tri.Triangulation(corners[:, 0], corners[:, 1])
+    refiner = tri.UniformTriRefiner(triangle)
+    trimesh = refiner.refine_triangulation(subdiv=4)
+    import pdb; pdb.set_trace();
+    pvals = [objective_function(xy, seed) for xy in zip(trimesh.x, trimesh.y)]
+
+    nlevels = 200
+    plt.tricontourf(trimesh, pvals, nlevels, cmap='jet', **kwargs)
+    plt.axis('equal')
+    plt.xlim(0, 1)
+    plt.ylim(0, 0.75**0.5)
+    plt.show()
+    plt.axis('off')
+
+
 
 def call_python_version(Version, Module, Function, ArgumentList):
     gw      = execnet.makegateway("popen//python=python%s" % Version)
@@ -37,6 +63,10 @@ def call_python_version(Version, Module, Function, ArgumentList):
 
 def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
+
+def plot_objective_function(seed, l_bound, h_bound):
+    call_python_version("2.7", "prog", "plot_objective_function", [seed, l_bound, h_bound])
+    plot_simplex(seed)
 
 def objective_function(x, seed, to_simplex=False, penalize=False):
     if(to_simplex):
@@ -134,7 +164,7 @@ def meshgrid_to_2d_grid(X, Y):
         final_piece = torch.cat((final_piece,torch.vstack((X[i+1,0].repeat(len(X[0])),Y[0])).T))
     return final_piece
 
-def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_name):
+def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_name, seed):
     grid_x = torch.linspace(0.0, 1.0, 100)
     grid_y = torch.linspace(0.0, 1.0, 100)
     X, Y = torch.meshgrid(grid_x, grid_y)
@@ -142,8 +172,10 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1]))).detach()
     posterior_grid = model.posterior(grid).mean[:,0].detach()
     #function_grid = torch.sum(grid**2.0, axis=1)
-    function_grid = torch.tensor([objective_function(x, name_obj_fun, bounds) for x in grid])
+    #function_grid = torch.tensor([objective_function(x, name_obj_fun, bounds) for x in grid])
+    plot_objective_function(seed, 0, 1)
     
+    '''
     fig,ax=plt.subplots(1,1)
     grid_dim = len(grid_x)
     cp = ax.contourf(grid[:,0].reshape(grid_dim, grid_dim), grid[:,1].reshape(grid_dim, grid_dim), function_grid.reshape(grid_dim, grid_dim))
@@ -157,6 +189,7 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     #plt.show()
     plt.clf()
     plt.close()
+    '''
 
     fig,ax=plt.subplots(1,1)
     cp = ax.contourf(grid[:,0].reshape(grid_dim, grid_dim), grid[:,1].reshape(grid_dim, grid_dim), posterior_grid.reshape(grid_dim, grid_dim))
@@ -183,7 +216,7 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     plt.clf()
     plt.close()
 
-def perform_BO_iteration(X, Y, seed, method_name, apply_simplex=False, apply_penalization=False, plot_acq_model=False):
+def perform_BO_iteration(X, Y, seed, method_name, iteration, apply_simplex=False, apply_penalization=False, plot_acq_model=True):
 
     gp = SingleTaskGP(X, Y)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
@@ -199,7 +232,7 @@ def perform_BO_iteration(X, Y, seed, method_name, apply_simplex=False, apply_pen
     UCB = UpperConfidenceBound(gp, beta=0.3, maximize=False)
     bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
     if plot_acq_model:
-        plot_acq_fun_model_posterior(UCB, X, gp, bounds, name_obj_fun, seed+1, method_name)
+        plot_acq_fun_model_posterior(UCB, X, gp, iteration, method_name, seed)
     new_X, acq_value = optimize_acqf(
             UCB, bounds=bounds_cube, q=1, num_restarts=5, raw_samples=20,
     )
@@ -269,7 +302,7 @@ def perform_penalizing_approach_experiment(seed, initial_design_size, budget, di
     torch.random.manual_seed(seed)
     X, Y = get_initial_results(initial_design_size, seed, dims_simplex, penalizing_approach=True)
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, seed, "Penalizing approach", apply_penalization=True)
+        X, Y = perform_BO_iteration(X, Y, seed, "Penalizing approach", i, apply_penalization=True)
         print("Iteration: " + str(i+1))
     print('Ending simplex transformation experiment')
     return Y
@@ -280,7 +313,7 @@ def perform_simplex_transformation_experiment(seed, initial_design_size, budget,
     torch.random.manual_seed(seed)
     X, Y = get_initial_results(initial_design_size, seed, dims_simplex, simplex_transformation=True)
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, seed, "Simplex transformation", apply_simplex=True)
+        X, Y = perform_BO_iteration(X, Y, seed, "Simplex transformation", i, apply_simplex=True)
         print("Iteration: " + str(i+1))
     print('Ending simplex transformation experiment')
     return Y
@@ -291,7 +324,7 @@ def perform_biyective_transformation_experiment(seed, initial_design_size, budge
     torch.random.manual_seed(seed)
     X, Y = get_initial_results(initial_design_size, seed, dims_simplex-1)
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, seed, "Biyective transformation")
+        X, Y = perform_BO_iteration(X, Y, seed, "Biyective transformation", i)
         print("Iteration: " + str(i+1))
     print('Ending biyective transformation experiment')
     return Y
@@ -338,5 +371,5 @@ if __name__ == '__main__' :
         results[3, :, exp] = perform_RS_BT_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[4, :, exp] = perform_RS_ST_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         print(exp)
-    #plot_results_log10_regret_acum(initial_design_size+budget, results)
-    plot_results(initial_design_size+budget, results)
+    plot_results_log10_regret_acum(initial_design_size+budget, results)
+    #plot_results(initial_design_size+budget, results)

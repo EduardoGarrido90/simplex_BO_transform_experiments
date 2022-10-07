@@ -107,13 +107,13 @@ class Synthetic_problem:
 
         return evaluation
 
-    def plot(self):
+    def plot(self, l_bound, h_bound):
 
         assert(self.input_space.num_dims == 2 or self.input_space.num_dims == 1)
 
         size = 50
-        x = np.linspace(0, 1, size)
-        y = np.linspace(0, 1, size)
+        x = np.linspace(l_bound, h_bound, size)
+        y = np.linspace(l_bound, h_bound, size)
         X, Y = np.meshgrid(x, y)
 
         if self.input_space.num_dims == 2:
@@ -127,10 +127,10 @@ class Synthetic_problem:
                         Z[ i, j ] = self.f(paramify_no_types(self.input_space.paramify(params)))[ key ]
 	
                 plt.figure()
-                im = plt.imshow(Z, interpolation = 'bilinear', origin = 'lower', cmap = cm.gray, extent = (0, 1, 0, 1))
+                im = plt.imshow(Z, interpolation = 'bilinear', origin = 'lower', cmap = cm.gray, extent = (l_bound, h_bound, l_bound, h_bound))
                 CS = plt.contour(X, Y, Z)
                 plt.clabel(CS, inline = 1, fontsize = 10)
-                plt.title(str(key))
+                plt.title('Objective function')
                 plt.show()
                 k += 1
         else:

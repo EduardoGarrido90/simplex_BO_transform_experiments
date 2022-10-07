@@ -16,6 +16,14 @@ def main(seed, params):
     result = problem.f(params)
     return str(result['o1'])
 
+def plot_objective_function(seed, l_bound, h_bound):
+    global problem
+
+    if problem is None:
+        problem = Synthetic_problem(seed)
+
+    problem.plot(l_bound, h_bound)
+
 def wrapper(seed, x, y):
     return main(seed, {'X': x, 'Y': y}) 
 
