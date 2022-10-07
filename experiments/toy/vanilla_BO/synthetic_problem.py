@@ -2,6 +2,7 @@ import matplotlib
 import matplotlib.cm as cm
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
+import time
 from spearmint.models.gp import GP
 from spearmint.acquisition_functions.predictive_entropy_search import sample_gp_with_random_features
 from spearmint.utils.parsing          import parse_config_file
@@ -11,6 +12,9 @@ from spearmint.utils.parsing          import parse_tasks_from_jobs
 import numpy as np
 
 NUM_RANDOM_FEATURES = 1000
+
+NO_ACTION = 1
+QUERY_SYN_PROBLEM = 2
 
 import numpy as np
 import ghalton
@@ -68,7 +72,36 @@ class Synthetic_problem:
         self.funs = { key : sample_gp_with_random_features(self.models[ key ], NUM_RANDOM_FEATURES) for key in self.models }
 
         np.random.set_state(state)
-	
+
+    def action_call():
+        f = open("action.txt", "r")
+        return f.read() 
+    
+    def get_params():
+        f = open("params_is.txt", "r")
+        return f.read().split(" ")
+
+    def send_result(y):
+        f = open("result_ts.txt", "a")
+        f.write(str(y))
+        f.close()
+
+    def print_finish():
+        f = open("finish_execution.txt", "a")
+        f.write("FINISHED")
+        f.close() 
+
+    def sleep_until_call(self):
+        while(action == NO_ACTION):
+            sleep(0.1)
+            action = action_call()
+            if(action == QUERY_SYN_PROBLEM):
+                params = get_params()
+                y = self.f(params)
+                send_result(y)
+                action = NO_ACTION
+        print_finish()
+
     def f(self, x):
 
         values = np.zeros(len(x))
