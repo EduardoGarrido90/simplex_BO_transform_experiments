@@ -18,7 +18,7 @@ import matplotlib.tri as tri
 #TAREAS DEL SIMPLEX:
 #DONE 0.a: Hacer el random 2D.
 #DONE 0.b: Hacer el random 3D.
-#1. Visualización del simplex. (Cachear la funcion objetivo, sino es impracticable dibujar el simplex, subdiv mas peque, generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]²)
+#1. Visualización del simplex. (Prog hacer un proceso dormir hasta llamada, sino es impracticable dibujar el simplex, generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]²)
 #2. Extraccion del peor punto del simplex.
 #3. Para penalizacion:
 #3.1 Hallar si el punto pertenece al simplex, sino, coger el peor punto y penalizar linealmente por distancia de la proyeccion de forma suave.
