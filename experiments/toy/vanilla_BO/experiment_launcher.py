@@ -18,7 +18,7 @@ import matplotlib.tri as tri
 #TAREAS DEL SIMPLEX:
 #DONE 0.a: Hacer el random 2D.
 #DONE 0.b: Hacer el random 3D.
-#1. Visualización del simplex. (Cachear la funcion objetivo, sino es impracticable dibujar el simplex)
+#1. Visualización del simplex. (Cachear la funcion objetivo, sino es impracticable dibujar el simplex, subdiv mas peque, generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]²)
 #2. Extraccion del peor punto del simplex.
 #3. Para penalizacion:
 #3.1 Hallar si el punto pertenece al simplex, sino, coger el peor punto y penalizar linealmente por distancia de la proyeccion de forma suave.
@@ -33,12 +33,12 @@ def xy2bc(xy, tol=1.e-4):
     coords = np.array([tri_area(xy, p) for p in pairs]) / AREA
     return np.clip(coords, tol, 1.0 - tol)
 
-def plot_simplex(seed):
+def plot_simplex(seed, **kwargs):
     corners = np.array([[0, 0], [1, 0], [0.5, 0.75**0.5]])
     AREA = 0.5 * 1 * 0.75**0.5
     triangle = tri.Triangulation(corners[:, 0], corners[:, 1])
     refiner = tri.UniformTriRefiner(triangle)
-    trimesh = refiner.refine_triangulation(subdiv=4)
+    trimesh = refiner.refine_triangulation(subdiv=2)
     import pdb; pdb.set_trace();
     pvals = [objective_function(xy, seed) for xy in zip(trimesh.x, trimesh.y)]
 
@@ -47,6 +47,7 @@ def plot_simplex(seed):
     plt.axis('equal')
     plt.xlim(0, 1)
     plt.ylim(0, 0.75**0.5)
+    plt.title('Objective function transformed into simplex')
     plt.show()
     plt.axis('off')
 
