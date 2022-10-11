@@ -15,9 +15,10 @@ NUM_RANDOM_FEATURES = 1000
 
 NO_ACTION = 1
 QUERY_SYN_PROBLEM = 2
-
+FINISHED = 3
 import numpy as np
 import ghalton
+from os.path import exists
 
 class Synthetic_problem:
 
@@ -73,35 +74,40 @@ class Synthetic_problem:
 
         np.random.set_state(state)
 
-    def action_call():
-        f = open("action.txt", "r")
-        return f.read() 
+    def action_call(self):
+        if exists("action.txt"):
+            f = open("action.txt", "r")
+            return f.read()
+        else:
+            return NO_ACTION 
     
-    def get_params():
+    def get_params(self):
         f = open("params_is.txt", "r")
-        return f.read().split(" ")
+        result = f.read().split(" ")
+        return np.array([float(r) for r in result])
 
-    def send_result(y):
-        f = open("result_ts.txt", "a")
-        f.write(str(y))
-        f.close()
-
-    def print_finish():
-        f = open("finish_execution.txt", "a")
-        f.write("FINISHED")
-        f.close() 
+    def send_result(self, y):
+        if not exists("result_ts.txt"):
+            f = open("result_ts.txt", "a")
+            f.write(str(y))
+            f.close()
+        if not exists("action_core.txt"):
+            f = open("action_core.txt", "a")
+            f.write(str(QUERY_SYN_PROBLEM))
+            f.close()
 
     def sleep_until_call(self):
+        action = NO_ACTION
         while(action == NO_ACTION):
-            sleep(0.1)
-            action = action_call()
-            if(action == QUERY_SYN_PROBLEM):
-                params = get_params()
-                y = self.f(params)
-                send_result(y)
+            time.sleep(0.1)
+            action = self.action_call()
+            if(action != NO_ACTION):
+                params = self.get_params()
+                y = self.funs['o1'](params, gradient = False)
+                self.send_result(y)
                 action = NO_ACTION
-        print_finish()
-
+                time.sleep(0.2)
+    
     def f(self, x):
 
         values = np.zeros(len(x))

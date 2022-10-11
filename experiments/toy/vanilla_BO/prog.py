@@ -35,8 +35,10 @@ def initiate(seed):
 
     problem.sleep_until_call()
 
+
 if __name__ == '__main__':
     seed = int(sys.argv[1])
-    x = float(sys.argv[2])
-    y = float(sys.argv[3])
-    wrapper(seed, x, y)
+    initiate(seed)
+#    x = float(sys.argv[2])
+#    y = float(sys.argv[3])
+#    wrapper(seed, x, y)

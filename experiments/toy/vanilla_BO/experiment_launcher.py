@@ -14,6 +14,9 @@ import execnet
 from scipy.special import softmax
 import math
 import matplotlib.tri as tri
+import os 
+import time
+from os.path import exists
 
 #TAREAS DEL SIMPLEX:
 #DONE 0.a: Hacer el random 2D.
@@ -27,6 +30,9 @@ import matplotlib.tri as tri
 #5 Arreglar con -0.5/0.05 que sería una escala de [0,1]^2 a R^2, luego de R^2 a S^3 tienes el simplex de ese punto. 
 #6 Comparar todos los baselines. 
 GLOBAL_MAXIMUM = 1000
+NO_ACTION = 1
+QUERY_SYN_PROBLEM = 2
+FINISHED = 3
 
 def xy2bc(xy, tol=1.e-4):
     '''Converts 2D Cartesian coordinates to barycentric.'''
@@ -51,8 +57,6 @@ def plot_simplex(seed, **kwargs):
     plt.show()
     plt.axis('off')
 
-
-
 def call_python_version(Version, Module, Function, ArgumentList):
     gw      = execnet.makegateway("popen//python=python%s" % Version)
     channel = gw.remote_exec("""
@@ -69,11 +73,44 @@ def plot_objective_function(seed, l_bound, h_bound):
     call_python_version("2.7", "prog", "plot_objective_function", [seed, l_bound, h_bound])
     plot_simplex(seed)
 
+def delete_files():
+    os.remove("action.txt")
+    os.remove("result_ts.txt")
+    os.remove("action_core.txt")
+    os.remove("params_is.txt")
+
+def action_call():
+    if exists("action_core.txt"):
+       f = open("action_core.txt", "r") 
+       return f.read()
+    else:
+        return NO_ACTION
+
+def get_result_obj_fun():
+    f = open("result_ts.txt")
+    return float(f.read())
+
 def objective_function(x, seed, to_simplex=False, penalize=False):
     if(to_simplex):
         x = inverse_biyective_transformation(simplex_transformation(x))
     print("Evaluating objective function X=", str(x))
-    y = torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
+    #y = torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
+    import pdb; pdb.set_trace();
+    f = open("params_is.txt", "a")
+    f.write(str(float(x[0])) + " " + str(float(x[1])))
+    f.close()
+    f = open("action.txt", "a")
+    f.write(str(QUERY_SYN_PROBLEM))
+    f.close()
+    action=NO_ACTION
+    print("Querying GP")
+    while(action==NO_ACTION):
+        time.sleep(0.1)
+        action = action_call()
+        if(action != NO_ACTION):
+            y = get_result_obj_fun()
+            delete_files()
+    print("GP queried")
     if(penalize):
         y = penalization_approach(x, y)
     print("Objective function evaluated. Y=", str(y))
@@ -353,7 +390,8 @@ def perform_RS_ST_experiment(seed, initial_design_size, budget, dims_simplex) ->
     return Y
 
 def generate_synthetic_problem(seed):
-    call_python_version("2.7", "prog", "initiate", [seed])
+    #call_python_version("2.7", "prog", "initiate", [seed])
+    os.system("python2 prog.py " + str(seed) + " &")
 
 if __name__ == '__main__' :
     #Tests.
@@ -376,5 +414,8 @@ if __name__ == '__main__' :
         results[3, :, exp] = perform_RS_BT_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[4, :, exp] = perform_RS_ST_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         print(exp)
+    f = open("action.txt", "a") #kills the other process
+    f.write(str(FINISHED))
+    f.close()
     plot_results_log10_regret_acum(initial_design_size+budget, results)
     #plot_results(initial_design_size+budget, results)
