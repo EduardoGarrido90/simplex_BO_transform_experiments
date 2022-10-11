@@ -21,7 +21,7 @@ from os.path import exists
 #TAREAS DEL SIMPLEX:
 #DONE 0.a: Hacer el random 2D.
 #DONE 0.b: Hacer el random 3D.
-#1. Visualización del simplex. (Prog hacer un proceso dormir hasta llamada, sino es impracticable dibujar el simplex, generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]²)
+#1. Visualización del simplex. (Generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]²)
 #2. Extraccion del peor punto del simplex.
 #3. Para penalizacion:
 #3.1 Hallar si el punto pertenece al simplex, sino, coger el peor punto y penalizar linealmente por distancia de la proyeccion de forma suave.
@@ -95,7 +95,6 @@ def objective_function(x, seed, to_simplex=False, penalize=False):
         x = inverse_biyective_transformation(simplex_transformation(x))
     print("Evaluating objective function X=", str(x))
     #y = torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
-    import pdb; pdb.set_trace();
     f = open("params_is.txt", "a")
     f.write(str(float(x[0])) + " " + str(float(x[1])))
     f.close()
@@ -254,7 +253,7 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     plt.clf()
     plt.close()
 
-def perform_BO_iteration(X, Y, seed, method_name, iteration, apply_simplex=False, apply_penalization=False, plot_acq_model=True):
+def perform_BO_iteration(X, Y, seed, method_name, iteration, apply_simplex=False, apply_penalization=False, plot_acq_model=False):
 
     gp = SingleTaskGP(X, Y)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
