@@ -82,17 +82,20 @@ class Synthetic_problem:
             return NO_ACTION 
     
     def get_params(self):
-        f = open("params_is.txt", "r")
-        result = f.read().split(" ")
-        return np.array([float(r) for r in result])
+        result = np.array([])
+        if exists("params_is.txt"):
+            f = open("params_is.txt", "r")
+            result = f.read().split(" ")
+            result = np.array([float(r) for r in result])
+        return result 
 
     def send_result(self, y):
         if not exists("result_ts.txt"):
-            f = open("result_ts.txt", "a")
+            f = open("result_ts.txt", "w")
             f.write(str(y))
             f.close()
         if not exists("action_core.txt"):
-            f = open("action_core.txt", "a")
+            f = open("action_core.txt", "w")
             f.write(str(QUERY_SYN_PROBLEM))
             f.close()
 
@@ -103,10 +106,13 @@ class Synthetic_problem:
             action = self.action_call()
             if(action != NO_ACTION):
                 params = self.get_params()
-                y = self.funs['o1'](params, gradient = False)
-                self.send_result(y)
-                action = NO_ACTION
-                time.sleep(0.2)
+                if len(params)>0:
+                    y = self.funs['o1'](params, gradient = False)
+                    self.send_result(y)
+                    action = NO_ACTION
+                    time.sleep(0.2)
+                else:
+                    action = FINISHED
     
     def f(self, x):
 

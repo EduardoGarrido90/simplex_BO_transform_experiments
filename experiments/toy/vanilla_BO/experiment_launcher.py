@@ -21,7 +21,7 @@ from os.path import exists
 #TAREAS DEL SIMPLEX:
 #DONE 0.a: Hacer el random 2D.
 #DONE 0.b: Hacer el random 3D.
-#1. Visualización del simplex. (Generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]²)
+#1. Visualización del simplex. (Obtener el mejor punto del simplex (el minimo). Generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]² y arreglar visualizacion.)
 #2. Extraccion del peor punto del simplex.
 #3. Para penalizacion:
 #3.1 Hallar si el punto pertenece al simplex, sino, coger el peor punto y penalizar linealmente por distancia de la proyeccion de forma suave.
@@ -95,10 +95,10 @@ def objective_function(x, seed, to_simplex=False, penalize=False):
         x = inverse_biyective_transformation(simplex_transformation(x))
     print("Evaluating objective function X=", str(x))
     #y = torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
-    f = open("params_is.txt", "a")
+    f = open("params_is.txt", "w")
     f.write(str(float(x[0])) + " " + str(float(x[1])))
     f.close()
-    f = open("action.txt", "a")
+    f = open("action.txt", "w")
     f.write(str(QUERY_SYN_PROBLEM))
     f.close()
     action=NO_ACTION
@@ -113,7 +113,7 @@ def objective_function(x, seed, to_simplex=False, penalize=False):
     if(penalize):
         y = penalization_approach(x, y)
     print("Objective function evaluated. Y=", str(y))
-    return y
+    return torch.tensor(y)
 
 def simplex_transformation(x):
     transformed_inputs = (x - 0.5) / 0.05
@@ -399,9 +399,9 @@ if __name__ == '__main__' :
     #x_simplex = biyective_transformation(torch.tensor([0.3,0.9]))
     #x = inverse_biyective_transformation(x_simplex)
     dims_simplex = 3
-    total_exps = 10
+    total_exps = 1
     initial_design_size = 5
-    budget = 10
+    budget = 2
     n_methods = 5
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
