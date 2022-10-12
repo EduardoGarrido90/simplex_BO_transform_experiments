@@ -45,7 +45,7 @@ def get_optimum(seed):
 
 if __name__ == '__main__':
     seed = int(sys.argv[1])
-    if len(sys.argv==2):
+    if len(sys.argv)==2:
         initiate(seed)
     else:
         get_optimum(seed)
