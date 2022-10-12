@@ -163,11 +163,11 @@ def plot_results_log10_regret_acum(n_iters, results, optimums):
     X_plot = np.linspace(1, n_iters, n_iters)
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-    y_0 = np.log10(GLOBAL_MAXIMUM - results[0].mean(axis=1))
-    y_1 = np.log10(GLOBAL_MAXIMUM - results[1].mean(axis=1))
-    y_2 = np.log10(GLOBAL_MAXIMUM - results[2].mean(axis=1))
-    y_3 = np.log10(GLOBAL_MAXIMUM - results[3].mean(axis=1))
-    y_4 = np.log10(GLOBAL_MAXIMUM - results[4].mean(axis=1))
+    y_0 = np.log10(np.abs(optimums - results[0])).mean(axis=1)
+    y_1 = np.log10(np.abs(optimums - results[1])).mean(axis=1)
+    y_2 = np.log10(np.abs(optimums - results[2])).mean(axis=1)
+    y_3 = np.log10(np.abs(optimums - results[3])).mean(axis=1)
+    y_4 = np.log10(np.abs(optimums - results[4])).mean(axis=1)
 
     ax.errorbar(
         X_plot, get_best_results_list(y_0), yerr=0.1*ci(results[0], results.shape[2]), label="Biyective Transformation", linewidth=1.5, capsize=3, alpha=0.6
@@ -399,6 +399,7 @@ def generate_optimum(seed):
     f = open("optimums/best_result_" + str(seed) + ".txt", "r")
     optimum = float(f.read())
     f.close()
+    return optimum
 
 if __name__ == '__main__' :
     #Tests.
