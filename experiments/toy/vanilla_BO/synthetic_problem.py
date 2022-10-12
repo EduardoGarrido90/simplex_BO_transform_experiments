@@ -75,18 +75,17 @@ class Synthetic_problem:
         np.random.set_state(state)
 
     def meshgrid_to_2d_grid(self, X, Y):
-        final_piece = np.vstack((X[0,0].repeat(len(X[0])),Y[0])).T
+        final_piece = np.vstack((X[0,0].repeat(len(X[0])),Y[:,0])).T
         for i in range(len(X[0])-1):
-            final_piece = np.cat((final_piece,torch.vstack((X[i+1,0].repeat(len(X[0])),Y[0])).T))
+            final_piece = np.concatenate((final_piece,np.vstack((X[0,i+1].repeat(len(X[0])),Y[:,0])).T))
         return final_piece
 
     def get_optimum(self, seed):
         grid_x = np.linspace(0.0, 1.0, 100)
         grid_y = np.linspace(0.0, 1.0, 100)
         X, Y = np.meshgrid(grid_x, grid_y)
-        import pdb; pdb.set_trace();
         grid = self.meshgrid_to_2d_grid(X, Y)
-        best_result = grid[0]
+        best_result = self.funs['o1'](grid[0], gradient = False)
         for point in grid:
             result = self.funs['o1'](point, gradient = False)
             if result < best_result:
