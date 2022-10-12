@@ -94,6 +94,20 @@ class Synthetic_problem:
         f.write(str(best_result))
         f.close()
 
+    def get_worst(self, seed):
+        grid_x = np.linspace(0.0, 1.0, 100)
+        grid_y = np.linspace(0.0, 1.0, 100)
+        X, Y = np.meshgrid(grid_x, grid_y)
+        grid = self.meshgrid_to_2d_grid(X, Y)
+        best_result = self.funs['o1'](grid[0], gradient = False)
+        for point in grid:
+            result = self.funs['o1'](point, gradient = False)
+            if result > best_result:
+                best_result = result
+        f = open("optimums/worst_result_" + str(seed) + ".txt", "w")
+        f.write(str(best_result))
+        f.close()
+
     def action_call(self):
         if exists("outputs/action.txt"):
             f = open("outputs/action.txt", "r")
@@ -192,7 +206,7 @@ class Synthetic_problem:
                         Z[ i, j ] = self.f(paramify_no_types(self.input_space.paramify(params)))[ key ]
 	
                 plt.figure()
-                im = plt.imshow(Z, interpolation = 'bilinear', origin = 'lower', cmap = cm.gray, extent = (l_bound, h_bound, l_bound, h_bound))
+                im = plt.imshow(Z, interpolation = 'bilinear', origin = 'lower', cmap = 'jet', extent = (l_bound, h_bound, l_bound, h_bound))
                 CS = plt.contour(X, Y, Z)
                 plt.clabel(CS, inline = 1, fontsize = 10)
                 plt.title('Objective function')

@@ -22,13 +22,14 @@ from os.path import exists
 #DONE 0.a: Hacer el random 2D.
 #DONE 0.b: Hacer el random 3D.
 #1. Visualización del simplex. (Obtener el mejor punto del simplex (el minimo). Generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]² y arreglar visualizacion.)
-#2. Extraccion del peor punto del simplex.
+#DONE 2. Extraccion del mejor punto del simplex.
+#2b. Extraccion del peor punto del simplex.
 #3. Para penalizacion:
 #3.1 Hallar si el punto pertenece al simplex, sino, coger el peor punto y penalizar linealmente por distancia de la proyeccion de forma suave.
 #3.2 Si pertenece, entonces hacer la transformación inversa y ya esta.
 #4 Hacer una visualizacion exhaustiva de la funcion objetivo en 2D y de su representacion en el simplex para enseñar a Daniel que [0,1]^2 -> No es exhaustivo el simplex. Esto se arregla con -0.5/0.05.
 #5 Arreglar con -0.5/0.05 que sería una escala de [0,1]^2 a R^2, luego de R^2 a S^3 tienes el simplex de ese punto. 
-#6 Comparar todos los baselines. 
+#6 Comparar todos los baselines.
 GLOBAL_MAXIMUM = 1000
 NO_ACTION = 1
 QUERY_SYN_PROBLEM = 2
@@ -255,7 +256,7 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     plt.clf()
     plt.close()
 
-def perform_BO_iteration(X, Y, seed, method_name, iteration, apply_simplex=False, apply_penalization=False, plot_acq_model=False):
+def perform_BO_iteration(X, Y, seed, method_name, iteration, apply_simplex=False, apply_penalization=False, plot_acq_model=True):
 
     gp = SingleTaskGP(X, Y)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
@@ -272,9 +273,7 @@ def perform_BO_iteration(X, Y, seed, method_name, iteration, apply_simplex=False
     bounds_cube = torch.stack([torch.zeros(X.shape[1]), torch.ones(X.shape[1])])
     if plot_acq_model:
         plot_acq_fun_model_posterior(UCB, X, gp, iteration, method_name, seed)
-    new_X, acq_value = optimize_acqf(
-            UCB, bounds=bounds_cube, q=1, num_restarts=5, raw_samples=20,
-    )
+    new_X, acq_value = optimize_acqf(UCB, bounds=bounds_cube, q=1, num_restarts=5, raw_samples=20,)
     if apply_simplex:
         new_y = objective_function(new_X[0], seed, to_simplex=True)
     elif apply_penalization:
@@ -403,6 +402,15 @@ def generate_optimum(seed):
     f.close()
     return optimum
 
+def generate_worst(seed):
+    #call_python_version("2.7", "prog", "initiate", [seed])
+    if not exists("optimums/worst_result_" + str(seed) + ".txt"):
+        os.system("python2 prog.py " + str(seed) + " 2")
+    f = open("optimums/worst_result_" + str(seed) + ".txt", "r")
+    optimum = float(f.read())
+    f.close()
+    return optimum
+
 if __name__ == '__main__' :
     #Tests.
     #normalize_points(torch.tensor([3,-1]), torch.tensor([[-4.5,-4.5],[4.5,4.5]]))
@@ -417,8 +425,10 @@ if __name__ == '__main__' :
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
     optimums = torch.ones((total_exps))
+    worsts = torch.ones((total_exps))
     for exp in range(total_exps):
         optimums[exp] = generate_optimum(exp)
+        worsts[exp] = generate_worst(exp)
         generate_synthetic_problem(exp)
         results[0, :, exp] = perform_biyective_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[1, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
