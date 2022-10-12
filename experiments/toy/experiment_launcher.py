@@ -128,6 +128,7 @@ def plot_results_log10_regret(n_iters, results):
     X_plot = np.linspace(1, n_iters, n_iters)
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    
     ax.errorbar(
         X_plot, np.log10(GLOBAL_MAXIMUM - results[0].mean(axis=1)), yerr=0.1*ci(results[0], results.shape[2]), label="Biyective Transformation", linewidth=1.5, capsize=3, alpha=0.6
     )
@@ -163,6 +164,7 @@ def plot_results_log10_regret_acum(n_iters, results, optimums):
     X_plot = np.linspace(1, n_iters, n_iters)
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    optimums = np.repeat(optimums, results.shape[1]).reshape((optimums.shape[0], results.shape[1])).T
     y_0 = np.log10(np.abs(optimums - results[0])).mean(axis=1)
     y_1 = np.log10(np.abs(optimums - results[1])).mean(axis=1)
     y_2 = np.log10(np.abs(optimums - results[2])).mean(axis=1)
@@ -408,7 +410,7 @@ if __name__ == '__main__' :
     #x_simplex = biyective_transformation(torch.tensor([0.3,0.9]))
     #x = inverse_biyective_transformation(x_simplex)
     dims_simplex = 3
-    total_exps = 1
+    total_exps = 2
     initial_design_size = 5
     budget = 2
     n_methods = 5
@@ -424,7 +426,7 @@ if __name__ == '__main__' :
         results[3, :, exp] = perform_RS_BT_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[4, :, exp] = perform_RS_ST_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         print(exp)
-    f = open("output/action.txt", "a") #kills the other process
+    f = open("outputs/action.txt", "a") #kills the other process
     f.write(str(FINISHED))
     f.close()
     plot_results_log10_regret_acum(initial_design_size+budget, results, optimums)
