@@ -35,10 +35,20 @@ def initiate(seed):
 
     problem.sleep_until_call()
 
+def get_optimum(seed):
+    global problem
+
+    if problem is None:
+        problem = Synthetic_problem(seed)
+
+    problem.get_optimum(seed)
 
 if __name__ == '__main__':
     seed = int(sys.argv[1])
-    initiate(seed)
+    if len(sys.argv==2):
+        initiate(seed)
+    else:
+        get_optimum(seed)
 #    x = float(sys.argv[2])
 #    y = float(sys.argv[3])
 #    wrapper(seed, x, y)

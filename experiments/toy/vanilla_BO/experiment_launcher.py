@@ -159,7 +159,7 @@ def get_best_results_list(y):
         counter = counter + 1
     return y
 
-def plot_results_log10_regret_acum(n_iters, results):
+def plot_results_log10_regret_acum(n_iters, results, optimums):
     X_plot = np.linspace(1, n_iters, n_iters)
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
@@ -392,6 +392,14 @@ def generate_synthetic_problem(seed):
     #call_python_version("2.7", "prog", "initiate", [seed])
     os.system("python2 prog.py " + str(seed) + " &")
 
+def generate_optimum(seed):
+    #call_python_version("2.7", "prog", "initiate", [seed])
+    if not exists("best_result_" + str(seed) + ".txt"):
+        os.system("python2 prog.py " + str(seed) + " 1")
+    f = open("best_result_" + str(seed) + ".txt", "r")
+    optimum = float(f.read())
+    f.close()
+
 if __name__ == '__main__' :
     #Tests.
     #normalize_points(torch.tensor([3,-1]), torch.tensor([[-4.5,-4.5],[4.5,4.5]]))
@@ -405,7 +413,9 @@ if __name__ == '__main__' :
     n_methods = 5
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
+    optimums = torch.ones((total_exps))
     for exp in range(total_exps):
+        optimums[exp] = generate_optimum(exp)
         generate_synthetic_problem(exp)
         results[0, :, exp] = perform_biyective_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[1, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
@@ -416,5 +426,5 @@ if __name__ == '__main__' :
     f = open("action.txt", "a") #kills the other process
     f.write(str(FINISHED))
     f.close()
-    plot_results_log10_regret_acum(initial_design_size+budget, results)
+    plot_results_log10_regret_acum(initial_design_size+budget, results, optimums)
     #plot_results(initial_design_size+budget, results)

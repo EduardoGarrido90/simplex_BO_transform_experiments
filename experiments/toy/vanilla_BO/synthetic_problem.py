@@ -74,6 +74,27 @@ class Synthetic_problem:
 
         np.random.set_state(state)
 
+    def meshgrid_to_2d_grid(X, Y):
+        final_piece = np.vstack((X[0,0].repeat(len(X[0])),Y[0])).T
+        for i in range(len(X[0])-1):
+            final_piece = np.cat((final_piece,torch.vstack((X[i+1,0].repeat(len(X[0])),Y[0])).T))
+        return final_piece
+
+    def get_optimum(self, seed):
+        grid_x = np.linspace(0.0, 1.0, 100)
+        grid_y = np.linspace(0.0, 1.0, 100)
+        X, Y = np.meshgrid(grid_x, grid_y)
+        import pdb; pdb.set_trace();
+        grid = meshgrid_to_2d_grid(X, Y)
+        best_result = grid[0]
+        for point in grid:
+            result = self.funs['o1'](point, gradient = False)
+            if result < best_result:
+                best_result = result
+        f = open("best_result_" + str(seed) + ".txt", "w")
+        f.write(str(best_result))
+        f.close()
+
     def action_call(self):
         if exists("action.txt"):
             f = open("action.txt", "r")
