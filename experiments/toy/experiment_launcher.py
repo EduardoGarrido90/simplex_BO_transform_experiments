@@ -21,9 +21,9 @@ from os.path import exists
 #TAREAS DEL SIMPLEX:
 #DONE 0.a: Hacer el random 2D.
 #DONE 0.b: Hacer el random 3D.
-#1. Visualización del simplex. (Obtener el mejor punto del simplex (el minimo). Generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]² y arreglar visualizacion.)
+#1. Visualización del simplex. Generar los puntos de la transf. biyectiva para ver que no cubre con [0,1]² y arreglar visualizacion.)
 #DONE 2. Extraccion del mejor punto del simplex.
-#2b. Extraccion del peor punto del simplex.
+#DONE 2b. Extraccion del peor punto del simplex.
 #3. Para penalizacion:
 #3.1 Hallar si el punto pertenece al simplex, sino, coger el peor punto y penalizar linealmente por distancia de la proyeccion de forma suave.
 #3.2 Si pertenece, entonces hacer la transformación inversa y ya esta.
@@ -46,7 +46,35 @@ def plot_simplex(seed, **kwargs):
     triangle = tri.Triangulation(corners[:, 0], corners[:, 1])
     refiner = tri.UniformTriRefiner(triangle)
     trimesh = refiner.refine_triangulation(subdiv=2)
+    pvals = [objective_function(xy, seed) for xy in zip(trimesh.x, trimesh.y)]
+
+    nlevels = 200
+    plt.tricontourf(trimesh, pvals, nlevels, cmap='jet', **kwargs)
+    plt.axis('equal')
+    plt.xlim(0, 1)
+    plt.ylim(0, 0.75**0.5)
+    plt.title('Objective function transformed into simplex')
+    plt.show()
+    plt.axis('off')
+
+def plot_simplex_transformation_from_hyp_d_plus_1_01(seed, **kwargs):
+    corners = np.array([[0, 0], [1, 0], [0.5, 0.75**0.5]])
+    AREA = 0.5 * 1 * 0.75**0.5
+    
+    grid_x = torch.linspace(0.0, 1.0, 100)
+    grid_y = torch.linspace(0.0, 1.0, 100)
+    X, Y = torch.meshgrid(grid_x, grid_y)
+    grid = meshgrid_to_2d_grid(X, Y)
+    simplex_grid = torch.ones((grid.shape[0],3))
+    counter = 0
+    for point in grid:
+        simplex_grid[counter] = biyective_transformation(point)
+        counter = counter + 1
+
     import pdb; pdb.set_trace();
+    triangle = tri.Triangulation(corners[:, 0], corners[:, 1])
+    refiner = tri.UniformTriRefiner(triangle)
+    trimesh = refiner.refine_triangulation(subdiv=2)
     pvals = [objective_function(xy, seed) for xy in zip(trimesh.x, trimesh.y)]
 
     nlevels = 200
@@ -73,6 +101,7 @@ def ci(y, n_exps): #Confidence interval.
 def plot_objective_function(seed, l_bound, h_bound):
     call_python_version("2.7", "prog", "plot_objective_function", [seed, l_bound, h_bound])
     plot_simplex(seed)
+    plot_simplex_transformation_from_hyp_d_plus_1_01(seed)
 
 def delete_files():
     os.remove("outputs/action.txt")
