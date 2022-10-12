@@ -90,32 +90,32 @@ class Synthetic_problem:
             result = self.funs['o1'](point, gradient = False)
             if result < best_result:
                 best_result = result
-        f = open("best_result_" + str(seed) + ".txt", "w")
+        f = open("optimums/best_result_" + str(seed) + ".txt", "w")
         f.write(str(best_result))
         f.close()
 
     def action_call(self):
-        if exists("action.txt"):
-            f = open("action.txt", "r")
+        if exists("outputs/action.txt"):
+            f = open("outputs/action.txt", "r")
             return f.read()
         else:
             return NO_ACTION 
     
     def get_params(self):
         result = np.array([])
-        if exists("params_is.txt"):
-            f = open("params_is.txt", "r")
+        if exists("outputs/params_is.txt"):
+            f = open("outputs/params_is.txt", "r")
             result = f.read().split(" ")
             result = np.array([float(r) for r in result])
         return result 
 
     def send_result(self, y):
-        if not exists("result_ts.txt"):
-            f = open("result_ts.txt", "w")
+        if not exists("outputs/result_ts.txt"):
+            f = open("outputs/result_ts.txt", "w")
             f.write(str(y))
             f.close()
-        if not exists("action_core.txt"):
-            f = open("action_core.txt", "w")
+        if not exists("outputs/action_core.txt"):
+            f = open("outputs/action_core.txt", "w")
             f.write(str(QUERY_SYN_PROBLEM))
             f.close()
 

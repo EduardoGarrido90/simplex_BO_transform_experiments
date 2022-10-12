@@ -74,20 +74,20 @@ def plot_objective_function(seed, l_bound, h_bound):
     plot_simplex(seed)
 
 def delete_files():
-    os.remove("action.txt")
-    os.remove("result_ts.txt")
-    os.remove("action_core.txt")
-    os.remove("params_is.txt")
+    os.remove("outputs/action.txt")
+    os.remove("outputs/result_ts.txt")
+    os.remove("outputs/action_core.txt")
+    os.remove("outputs/params_is.txt")
 
 def action_call():
-    if exists("action_core.txt"):
-       f = open("action_core.txt", "r") 
+    if exists("outputs/action_core.txt"):
+       f = open("outputs/action_core.txt", "r") 
        return f.read()
     else:
         return NO_ACTION
 
 def get_result_obj_fun():
-    f = open("result_ts.txt")
+    f = open("outputs/result_ts.txt")
     return float(f.read())
 
 def objective_function(x, seed, to_simplex=False, penalize=False):
@@ -95,10 +95,10 @@ def objective_function(x, seed, to_simplex=False, penalize=False):
         x = inverse_biyective_transformation(simplex_transformation(x))
     print("Evaluating objective function X=", str(x))
     #y = torch.tensor(float(call_python_version("2.7", "prog", "wrapper", [seed, float(x[0]), float(x[1])])))
-    f = open("params_is.txt", "w")
+    f = open("outputs/params_is.txt", "w")
     f.write(str(float(x[0])) + " " + str(float(x[1])))
     f.close()
-    f = open("action.txt", "w")
+    f = open("outputs/action.txt", "w")
     f.write(str(QUERY_SYN_PROBLEM))
     f.close()
     action=NO_ACTION
@@ -394,9 +394,9 @@ def generate_synthetic_problem(seed):
 
 def generate_optimum(seed):
     #call_python_version("2.7", "prog", "initiate", [seed])
-    if not exists("best_result_" + str(seed) + ".txt"):
+    if not exists("optimums/best_result_" + str(seed) + ".txt"):
         os.system("python2 prog.py " + str(seed) + " 1")
-    f = open("best_result_" + str(seed) + ".txt", "r")
+    f = open("optimums/best_result_" + str(seed) + ".txt", "r")
     optimum = float(f.read())
     f.close()
 
@@ -423,7 +423,7 @@ if __name__ == '__main__' :
         results[3, :, exp] = perform_RS_BT_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[4, :, exp] = perform_RS_ST_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         print(exp)
-    f = open("action.txt", "a") #kills the other process
+    f = open("output/action.txt", "a") #kills the other process
     f.write(str(FINISHED))
     f.close()
     plot_results_log10_regret_acum(initial_design_size+budget, results, optimums)

@@ -1,1 +1,0 @@
-/usr/local/lib/python3.8/dist-packages/botorch-0.0.0-py3.8.egg/botorch
