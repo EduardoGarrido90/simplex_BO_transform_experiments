@@ -410,9 +410,9 @@ if __name__ == '__main__' :
     #x_simplex = biyective_transformation(torch.tensor([0.3,0.9]))
     #x = inverse_biyective_transformation(x_simplex)
     dims_simplex = 3
-    total_exps = 2
+    total_exps = 5
     initial_design_size = 5
-    budget = 2
+    budget = 20
     n_methods = 5
     total_its = initial_design_size + budget
     results = torch.ones((n_methods, total_its, total_exps))
