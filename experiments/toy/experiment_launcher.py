@@ -57,12 +57,13 @@ def plot_simplex(seed, **kwargs):
     plt.show()
     plt.axis('off')
 
+#Do a 3D plot for this. We cannot have a triangulation object.  
 def plot_simplex_transformation_from_hyp_d_plus_1_01(seed, **kwargs):
     corners = np.array([[0, 0], [1, 0], [0.5, 0.75**0.5]])
     AREA = 0.5 * 1 * 0.75**0.5
     
-    grid_x = torch.linspace(0.0, 1.0, 100)
-    grid_y = torch.linspace(0.0, 1.0, 100)
+    grid_x = torch.linspace(0.0, 1.0, 10)
+    grid_y = torch.linspace(0.0, 1.0, 10)
     X, Y = torch.meshgrid(grid_x, grid_y)
     grid = meshgrid_to_2d_grid(X, Y)
     simplex_grid = torch.ones((grid.shape[0],3))
@@ -75,10 +76,10 @@ def plot_simplex_transformation_from_hyp_d_plus_1_01(seed, **kwargs):
     triangle = tri.Triangulation(corners[:, 0], corners[:, 1])
     refiner = tri.UniformTriRefiner(triangle)
     trimesh = refiner.refine_triangulation(subdiv=2)
-    pvals = [objective_function(xy, seed) for xy in zip(trimesh.x, trimesh.y)]
+    pvals = [objective_function(xy, seed) for xy in simplex_grid]
 
     nlevels = 200
-    plt.tricontourf(trimesh, pvals, nlevels, cmap='jet', **kwargs)
+    plt.tricontourf(simplex_grid, pvals, nlevels, cmap='jet', **kwargs)
     plt.axis('equal')
     plt.xlim(0, 1)
     plt.ylim(0, 0.75**0.5)
