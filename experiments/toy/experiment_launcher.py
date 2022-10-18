@@ -49,37 +49,9 @@ def plot_simplex(seed, **kwargs):
     pvals = [objective_function(xy, seed) for xy in zip(trimesh.x, trimesh.y)]
 
     nlevels = 200
-    plt.tricontourf(trimesh, pvals, nlevels, cmap='jet', **kwargs)
-    plt.axis('equal')
-    plt.xlim(0, 1)
-    plt.ylim(0, 0.75**0.5)
-    plt.title('Objective function transformed into simplex')
-    plt.show()
-    plt.axis('off')
-
-#Do a 3D plot for this. We cannot have a triangulation object.  
-def plot_simplex_transformation_from_hyp_d_plus_1_01(seed, **kwargs):
-    corners = np.array([[0, 0], [1, 0], [0.5, 0.75**0.5]])
-    AREA = 0.5 * 1 * 0.75**0.5
-    
-    grid_x = torch.linspace(0.0, 1.0, 10)
-    grid_y = torch.linspace(0.0, 1.0, 10)
-    X, Y = torch.meshgrid(grid_x, grid_y)
-    grid = meshgrid_to_2d_grid(X, Y)
-    simplex_grid = torch.ones((grid.shape[0],3))
-    counter = 0
-    for point in grid:
-        simplex_grid[counter] = biyective_transformation(point)
-        counter = counter + 1
-
-    import pdb; pdb.set_trace();
-    triangle = tri.Triangulation(corners[:, 0], corners[:, 1])
-    refiner = tri.UniformTriRefiner(triangle)
-    trimesh = refiner.refine_triangulation(subdiv=2)
-    pvals = [objective_function(xy, seed) for xy in simplex_grid]
-
-    nlevels = 200
-    plt.tricontourf(simplex_grid, pvals, nlevels, cmap='jet', **kwargs)
+    fig1, ax1 = plt.subplots()
+    tcf = plt.tricontourf(trimesh, pvals, nlevels, cmap='jet', origin='lower', **kwargs)
+    fig1.colorbar(tcf)
     plt.axis('equal')
     plt.xlim(0, 1)
     plt.ylim(0, 0.75**0.5)
