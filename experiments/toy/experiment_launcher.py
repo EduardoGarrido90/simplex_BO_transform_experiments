@@ -376,7 +376,7 @@ def perform_biyective_transformation_experiment_expanded(seed, initial_design_si
     torch.random.manual_seed(seed)
     X, Y = get_initial_results(initial_design_size, seed, dims_simplex-1, expand=True)
     for i in range(budget):
-        X, Y = perform_BO_iteration(X, Y, seed, "Biyective transformation expaneded", i, expand=True)
+        X, Y = perform_BO_iteration(X, Y, seed, "Biyective transformation expanded", i, expand=True)
         print("Iteration: " + str(i+1))
     print('Ending biyective transformation experiment')
     return Y
