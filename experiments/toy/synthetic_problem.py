@@ -210,6 +210,7 @@ class Synthetic_problem:
                 CS = plt.contour(X, Y, Z)
                 plt.clabel(CS, inline = 1, fontsize = 10)
                 plt.title('Objective function')
+                plt.savefig('./images/objective_function.png')
                 plt.show()
                 k += 1
         else:
