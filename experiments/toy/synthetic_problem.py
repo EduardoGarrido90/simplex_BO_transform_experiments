@@ -19,6 +19,7 @@ FINISHED = 3
 import numpy as np
 import ghalton
 from os.path import exists
+import os
 
 class Synthetic_problem:
 
@@ -210,8 +211,15 @@ class Synthetic_problem:
                 CS = plt.contour(X, Y, Z)
                 plt.clabel(CS, inline = 1, fontsize = 10)
                 plt.title('Objective function')
+                obs_input_file = "./outputs/obs_input.txt"
+                if exists(obs_input_file):
+                    obs_input = np.loadtxt(obs_input_file)
+                    plt.scatter(obs_input[:,0], obs_input[:,1], color="black", marker="X")
+                    plt.scatter(obs_input[len(obs_input)-1,0], obs_input[len(obs_input)-1,1], color="red", marker="X")
                 plt.savefig('./images/objective_function.png')
                 plt.show()
+                if exists(obs_input_file):
+                    os.remove(obs_input_file)
                 k += 1
         else:
             k = 0

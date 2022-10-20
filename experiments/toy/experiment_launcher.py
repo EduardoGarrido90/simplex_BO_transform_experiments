@@ -85,7 +85,7 @@ def plot_objective_function(seed, l_bound=None, h_bound=None, obs_input=None):
 
 def generate_observations_file(obs_input):
     f = open("outputs/obs_input.txt","w")
-    import pdb; pdb.set_trace();
+    np.savetxt('outputs/obs_input.txt', obs_input.numpy())
 
 def delete_files():
     os.remove("outputs/action.txt")
