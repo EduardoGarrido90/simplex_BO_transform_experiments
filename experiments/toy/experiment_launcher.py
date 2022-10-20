@@ -40,7 +40,7 @@ def xy2bc(xy, tol=1.e-4):
     coords = np.array([tri_area(xy, p) for p in pairs]) / AREA
     return np.clip(coords, tol, 1.0 - tol)
 
-def plot_simplex(seed, **kwargs):
+def plot_simplex(seed, obs_input=None, **kwargs):
     corners = np.array([[0, 0], [1, 0], [0.5, 0.75**0.5]])
     AREA = 0.5 * 1 * 0.75**0.5
     triangle = tri.Triangulation(corners[:, 0], corners[:, 1])
@@ -48,6 +48,7 @@ def plot_simplex(seed, **kwargs):
     trimesh = refiner.refine_triangulation(subdiv=2)
     pvals = [objective_function(xy, seed) for xy in zip(trimesh.x, trimesh.y)]
 
+    import pdb; pdb.set_trace();
     nlevels = 200
     fig1, ax1 = plt.subplots()
     tcf = plt.tricontourf(trimesh, pvals, nlevels, cmap='jet', origin='lower', **kwargs)
@@ -72,9 +73,10 @@ def call_python_version(Version, Module, Function, ArgumentList):
 def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
 
-def plot_objective_function(seed, l_bound, h_bound):
-    call_python_version("2.7", "prog", "plot_objective_function", [seed, l_bound, h_bound])
-    plot_simplex(seed)
+def plot_objective_function(seed, l_bound=None, h_bound=None, obs_input=None):
+    if obs_input == None:
+        call_python_version("2.7", "prog", "plot_objective_function", [seed, l_bound, h_bound])
+    plot_simplex(seed, obs_input)
 
 def delete_files():
     os.remove("outputs/action.txt")
@@ -220,6 +222,7 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     grid = meshgrid_to_2d_grid(X, Y)
     acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1]))).detach()
     posterior_grid = model.posterior(grid).mean[:,0].detach()
+    plot_objective_function(seed, obs_input=obs_input)
     #function_grid = torch.sum(grid**2.0, axis=1)
     #function_grid = torch.tensor([objective_function(x, name_obj_fun, bounds) for x in grid])
     
