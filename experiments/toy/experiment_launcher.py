@@ -48,6 +48,10 @@ def plot_simplex(seed, obs_input=None, **kwargs):
     trimesh = refiner.refine_triangulation(subdiv=2)
     pvals = [objective_function(xy, seed) for xy in zip(trimesh.x, trimesh.y)]
 
+    observations = []
+    if obs_input != None:
+        for observation in obs_input:
+            observations.append(biyective_transformation(observation))
     import pdb; pdb.set_trace();
     nlevels = 200
     fig1, ax1 = plt.subplots()
@@ -74,9 +78,14 @@ def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
 
 def plot_objective_function(seed, l_bound=None, h_bound=None, obs_input=None):
-    if obs_input == None:
-        call_python_version("2.7", "prog", "plot_objective_function", [seed, l_bound, h_bound])
+    if obs_input != None:
+        generate_observations_file(obs_input)
+    call_python_version("2.7", "prog", "plot_objective_function", [seed, l_bound, h_bound])
     plot_simplex(seed, obs_input)
+
+def generate_observations_file(obs_input):
+    f = open("outputs/obs_input.txt","w")
+    import pdb; pdb.set_trace();
 
 def delete_files():
     os.remove("outputs/action.txt")
