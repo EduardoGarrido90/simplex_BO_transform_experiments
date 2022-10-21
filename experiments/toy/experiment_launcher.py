@@ -52,7 +52,6 @@ def plot_simplex(seed, obs_input=None, **kwargs):
     if obs_input != None:
         for observation in obs_input:
             observations.append(biyective_transformation(observation))
-    import pdb; pdb.set_trace();
     nlevels = 200
     fig1, ax1 = plt.subplots()
     tcf = plt.tricontourf(trimesh, pvals, nlevels, cmap='jet', origin='lower', **kwargs)
@@ -77,7 +76,7 @@ def call_python_version(Version, Module, Function, ArgumentList):
 def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
 
-def plot_objective_function(seed, l_bound=None, h_bound=None, obs_input=None):
+def plot_objective_function(seed, l_bound=0, h_bound=1, obs_input=None):
     if obs_input != None:
         generate_observations_file(obs_input)
     call_python_version("2.7", "prog", "plot_objective_function", [seed, l_bound, h_bound])
