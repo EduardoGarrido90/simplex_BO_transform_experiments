@@ -40,28 +40,31 @@ def xy2bc(xy, tol=1.e-4):
     coords = np.array([tri_area(xy, p) for p in pairs]) / AREA
     return np.clip(coords, tol, 1.0 - tol)
 
-def plot_simplex(seed, obs_input=None, **kwargs):
+def plot_simplex(seed, iteration, obs_input=None, **kwargs):
     corners = np.array([[0, 0], [1, 0], [0.5, 0.75**0.5]])
     AREA = 0.5 * 1 * 0.75**0.5
     triangle = tri.Triangulation(corners[:, 0], corners[:, 1])
     refiner = tri.UniformTriRefiner(triangle)
     trimesh = refiner.refine_triangulation(subdiv=2)
     pvals = [objective_function(xy, seed) for xy in zip(trimesh.x, trimesh.y)]
-
-    observations = []
-    if obs_input != None:
-        for observation in obs_input:
-            observations.append(biyective_transformation(observation))
     nlevels = 200
-    fig1, ax1 = plt.subplots()
+    fig1, _ = plt.subplots()
     tcf = plt.tricontourf(trimesh, pvals, nlevels, cmap='jet', origin='lower', **kwargs)
     fig1.colorbar(tcf)
     plt.axis('equal')
     plt.xlim(0, 1)
     plt.ylim(0, 0.75**0.5)
+    if obs_input != None:
+        observations = []
+        for observation in obs_input:
+            observations.append(biyective_transformation(observation))
+        observations = np.array([x.numpy() for x in observations])
+        observations = observations.dot(corners)
+        plt.plot(observations[:, 0], observations[:, 1], 'Xk')
+        plt.plot(observations[len(observations)-1,0], observations[len(observations)-1,1], 'Xr')
     plt.title('Objective function transformed into simplex')
     plt.show()
-    plt.savefig('./images/simplex_objective_function.png')
+    plt.savefig('./images/simplex_objective_function_' + str(iteration) + '.png')
     plt.axis('off')
 
 def call_python_version(Version, Module, Function, ArgumentList):
@@ -76,11 +79,11 @@ def call_python_version(Version, Module, Function, ArgumentList):
 def ci(y, n_exps): #Confidence interval.
     return 1.96 * y.std(axis=1) / np.sqrt(n_exps)
 
-def plot_objective_function(seed, l_bound=0, h_bound=1, obs_input=None):
+def plot_objective_function(seed, iteration, l_bound=0, h_bound=1, obs_input=None):
     if obs_input != None:
         generate_observations_file(obs_input)
-    call_python_version("2.7", "prog", "plot_objective_function", [seed, l_bound, h_bound])
-    plot_simplex(seed, obs_input)
+    call_python_version("2.7", "prog", "plot_objective_function", [seed, iteration, l_bound, h_bound])
+    plot_simplex(seed, iteration, obs_input)
 
 def generate_observations_file(obs_input):
     f = open("outputs/obs_input.txt","w")
@@ -230,7 +233,7 @@ def plot_acq_fun_model_posterior(acq_fun, obs_input, model, iteration, method_na
     grid = meshgrid_to_2d_grid(X, Y)
     acq_fun_grid = acq_fun.forward(grid.reshape((grid.shape[0],1,grid.shape[1]))).detach()
     posterior_grid = model.posterior(grid).mean[:,0].detach()
-    plot_objective_function(seed, obs_input=obs_input)
+    plot_objective_function(seed, iteration, obs_input=obs_input)
     #function_grid = torch.sum(grid**2.0, axis=1)
     #function_grid = torch.tensor([objective_function(x, name_obj_fun, bounds) for x in grid])
     
@@ -455,7 +458,7 @@ if __name__ == '__main__' :
         optimums[exp] = generate_optimum(exp)
         worsts[exp] = generate_worst(exp)
         generate_synthetic_problem(exp)
-        plot_objective_function(exp, 0, 1)
+        plot_objective_function(exp, 0)
         results[0, :, exp] = perform_biyective_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[1, :, exp] = perform_biyective_transformation_experiment_expanded(exp, initial_design_size, budget, dims_simplex).reshape((total_its))
         results[2, :, exp] = perform_simplex_transformation_experiment(exp, initial_design_size, budget, dims_simplex).reshape((total_its))

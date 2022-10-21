@@ -187,7 +187,7 @@ class Synthetic_problem:
 
         return evaluation
 
-    def plot(self, l_bound, h_bound):
+    def plot(self, iteration, l_bound, h_bound):
 
         assert(self.input_space.num_dims == 2 or self.input_space.num_dims == 1)
 
@@ -216,7 +216,7 @@ class Synthetic_problem:
                     obs_input = np.loadtxt(obs_input_file)
                     plt.scatter(obs_input[:,0], obs_input[:,1], color="black", marker="X")
                     plt.scatter(obs_input[len(obs_input)-1,0], obs_input[len(obs_input)-1,1], color="red", marker="X")
-                plt.savefig('./images/objective_function.png')
+                plt.savefig('./images/objective_function_' + str(iteration) + '.png')
                 plt.show()
                 if exists(obs_input_file):
                     os.remove(obs_input_file)
